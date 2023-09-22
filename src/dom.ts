@@ -30,3 +30,31 @@ function $getCell(position: Position): HTMLElement {
 
   return $cell
 }
+
+export enum Animation {
+  AbsorbBottomShock = "absorb-bottom-shock",
+  LimitedShockLeft = "limited-shock-left",
+  LimitedShockRight = "limited-shock-right",
+}
+
+export function $playAnimation(
+  $element: HTMLElement,
+  animation: Animation,
+  duration: number
+): Promise<void> {
+  return new Promise(resolve => {
+    // Do not restart the same animation if it's already playing.
+    if ($element.style.animationName === animation)
+      return
+
+    $element.style.animationTimingFunction = "ease-in-out"
+    $element.style.animationDuration = `${duration}ms`
+    $element.style.animationName = animation
+    $element.classList.add(animation)
+
+    setTimeout(() => {
+      $element.style.animationName = ""
+      resolve()
+    }, duration)
+  })
+}
