@@ -2,7 +2,7 @@
   --cell-size: 40px;
   --board-width: 10;
   --board-height: 20;
-  --color-debug: red;
+  --color-debug: green;
   --color-cell-default: #555;
   --color-board-border: #000;
   --color-cell-border: #333;

@@ -1,4 +1,5 @@
-import {CellState, Position, assert} from "./game"
+import {CellState, Position} from "./game"
+import {assert} from "./util"
 
 type ArrayMatrix = CellState[][]
 
@@ -22,7 +23,7 @@ export default class Matrix {
     assert(colsCreated === cols, "created cols should match requested cols")
   }
 
-  iter(callback: (position: Position, state: CellState) => void) {
+  iter(callback: (position: Position, state: CellState) => void): void {
     for (let row = 0; row < this.rows; row++)
       for (let col = 0; col < this.cols; col++)
         callback({row, col}, this.inner[row][col])
@@ -43,15 +44,29 @@ export default class Matrix {
     return this.inner
   }
 
-  insert(other: Matrix): Matrix {
-    assert(other.rows <= this.rows, "insertion matrix should have fewer rows")
-    assert(other.cols <= this.cols, "insertion matrix should have fewer cols")
+  clear(mask: Matrix, offset: Position): Matrix {
+    assert(mask.rows + offset.row <= this.rows, "mask matrix should have fewer rows")
+    assert(mask.cols + offset.col <= this.cols, "mask matrix should have fewer cols")
 
     const result = this.clone()
 
-    other.iter(({row, col}, state) => {
+    mask.iter(({row, col}, state) => {
       if (state !== CellState.Empty)
-        result.inner[row][col] = state
+        result.inner[row + offset.row][col + offset.col] = CellState.Empty
+    })
+
+    return result
+  }
+
+  insert(mask: Matrix, offset: Position): Matrix {
+    assert(mask.rows + offset.row <= this.rows, "insertion matrix should have fewer rows")
+    assert(mask.cols + offset.col <= this.cols, "insertion matrix should have fewer cols")
+
+    const result = this.clone()
+
+    mask.iter(({row, col}, state) => {
+      if (state !== CellState.Empty)
+        result.inner[row + offset.row][col + offset.col] = state
     })
 
     return result
@@ -83,6 +98,32 @@ export default class Matrix {
     this.iter(({row, col}, state) => {
       if (state !== CellState.Empty)
         result.push({row, col})
+    })
+
+    return result
+  }
+
+  rotateClockwise(): Matrix {
+    const result = new Matrix(this.cols, this.rows)
+
+    this.iter(({row, col}, state) => {
+      const newRow = col
+      const newCol = this.rows - row - 1
+
+      result.inner[newRow][newCol] = state
+    })
+
+    return result
+  }
+
+  rotateCounterClockwise(): Matrix {
+    const result = new Matrix(this.cols, this.rows)
+
+    this.iter(({row, col}, state) => {
+      const newRow = this.cols - col - 1
+      const newCol = row
+
+      result.inner[newRow][newCol] = state
     })
 
     return result

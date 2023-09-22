@@ -8,7 +8,7 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  TICK_INTERVAL: 700,
+  TICK_INTERVAL: 1000,
 }
 
 export type Position = {
@@ -23,43 +23,67 @@ export enum CellState {
 
 type State = {
   board: Matrix
-  fallingTetrominoCells: Position[]
+  tetromino: Matrix
+  tetrominoPosition: Position
 }
 
-export function assert(condition: boolean, reasoning: string): asserts condition {
-  if (!condition)
-    throw new Error(`assertion failed: ${reasoning}`)
-}
+function tick(state: State): State {
+  const nextState = {
+    board: state.board.clone(),
+    tetromino: state.tetromino.clone(),
+    tetrominoPosition: {...state.tetrominoPosition},
+  }
 
-function tick(state: State) {
   // Shift falling tetromino down by one row.
-  if (state.fallingTetrominoCells !== null)
-    for (const fallingCell of state.fallingTetrominoCells) {
-      const nextBoard = state.board.set(fallingCell, CellState.Empty)
+  nextState.board = nextState.board.clear(nextState.tetromino, nextState.tetrominoPosition)
+  nextState.tetrominoPosition.row += 1
+  nextState.board = nextState.board.insert(nextState.tetromino, nextState.tetrominoPosition)
 
-      fallingCell.row += 1
-      state.board = nextBoard.set(fallingCell, CellState.Filled)
-    }
-
-  // Render.
-  state.board.iter((position, state) => $updateCellState(position, state))
-
-  console.log("tick")
+  return nextState
 }
 
 window.addEventListener("load", () => {
-  console.log("Logic loaded")
+  console.log("Game logic loaded")
 
   const $board = document.querySelector(Const.BOARD_SELECTOR)!
 
   $createBoardCells().forEach($cell => $board.appendChild($cell))
   console.log(`Initialized HTML board (${Const.BOARD_COLS}x${Const.BOARD_ROWS})`)
 
-  const state: State = {
+  const middleCol = Math.floor(Const.BOARD_COLS / 2)
+
+  let state: State = {
     board: new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS),
-    fallingTetrominoCells: Tetromino.square.toFilledPositionList(),
+    tetromino: Tetromino.random,
+    tetrominoPosition: {row: 0, col: middleCol},
   }
 
+  $board.addEventListener("click", event => {
+    event.preventDefault()
+
+    if (state.tetromino)
+      state.tetromino = state.tetromino.rotateClockwise()
+  })
+
+  $board.addEventListener("contextmenu", event => {
+    event.preventDefault()
+
+    if (state.tetromino)
+      state.tetromino = state.tetromino.rotateClockwise()
+  })
+
+  const render = (state: State) =>
+    state.board.iter((position, state) => $updateCellState(position, state))
+
+  // Initial render.
+  state.board = state.board.insert(state.tetromino, state.tetrominoPosition)
+  render(state)
+  console.log("Initial render")
+
   // Start game loop.
-  setInterval(() => tick(state), Const.TICK_INTERVAL)
+  setInterval(() => {
+    state = tick(state)
+    render(state)
+    console.log("tick")
+  }, Const.TICK_INTERVAL)
 })
