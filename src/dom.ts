@@ -18,8 +18,18 @@ export function $createBoardCells() {
   return $cells
 }
 
-export function $updateCellState(position: Position, state: CellState) {
-  $getCell(position).dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state
+export function $updateCellState(
+  position: Position,
+  state: CellState,
+) {
+  const $cell = $getCell(position)
+
+  $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state
+
+  if (state !== CellState.Empty)
+    $cell.classList.add(state)
+  else
+    $cell.classList.remove(...Object.values(CellState))
 }
 
 function $getCell(position: Position): HTMLElement {

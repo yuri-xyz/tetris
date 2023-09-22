@@ -32,6 +32,11 @@
   --z-front: 2;
 }
 
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
 html,
 body {
   height: 100%;
@@ -87,11 +92,40 @@ body {
 
 .cell {
   background-color: var(--color-cell-default);
+  background-size: var(--cell-size);
 }
 
-.cell[data-tag="filled"] {
+/* .cell[data-tag="filled"] {
   background-color: var(--color-debug);
   box-shadow: inset 5px 5px 10px #016401, inset 5px 5px 5px #016401;
+} */
+
+.cell.red {
+  background-image: url("/assets/tetromino-red.png");
+}
+
+.cell.purple {
+  background-image: url("/assets/tetromino-purple.png");
+}
+
+.cell.green {
+  background-image: url("/assets/tetromino-green.png");
+}
+
+.cell.lightgreen {
+  background-image: url("/assets/tetromino-lightgreen.png");
+}
+
+.cell.orange {
+  background-image: url("/assets/tetromino-orange.png");
+}
+
+.cell.pink {
+  background-image: url("/assets/tetromino-pink.png");
+}
+
+.cell.yellow {
+  background-image: url("/assets/tetromino-yellow.png");
 }
 
 .particle {

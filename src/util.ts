@@ -1,7 +1,7 @@
 const audioCache = new Map<string, HTMLAudioElement>()
 
 export enum AudioAsset {
-  Bling = "bling",
+  Floor = "floor.ogg",
   Theme = "theme"
 }
 
@@ -28,7 +28,7 @@ export function chooseRandom<T>(choices: T[]): T {
 
 export function playAudio(asset: AudioAsset) {
   if (!audioCache.has(asset)) {
-    const audio = new Audio(`/assets/${asset}.wav`)
+    const audio = new Audio(`/assets/${asset}`)
 
     audioCache.set(asset, audio)
   }
@@ -36,7 +36,6 @@ export function playAudio(asset: AudioAsset) {
   const audio = audioCache.get(asset)!
 
   audio.currentTime = 0
-  audio.volume = 0.5
   audio.play()
 }
 

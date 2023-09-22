@@ -20,7 +20,13 @@ export type Position = {
 
 export enum CellState {
   Empty = "empty",
-  Filled = "filled",
+  Red = "red",
+  Green = "green",
+  LightGreen = "lightgreen",
+  Pink = "pink",
+  Orange = "orange",
+  Yellow = "yellow",
+  Purple = "purple",
 }
 
 type State = {
@@ -87,7 +93,7 @@ function canMove(delta: Position, state: State): boolean {
 }
 
 function tick(previousState: State): State {
-  const state = {
+  const state: State = {
     board: previousState.board.clone(),
     tetromino: previousState.tetromino.clone(),
     tetrominoPosition: {...previousState.tetrominoPosition},
@@ -119,7 +125,7 @@ function tick(previousState: State): State {
       col: calculateMiddleCol(state.board.cols, state.tetromino.cols)
     }
 
-    playAudio(AudioAsset.Bling)
+    playAudio(AudioAsset.Floor)
     $playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, Animation.AbsorbBottomShock, 400)
 
     spawnParticles({
@@ -242,18 +248,19 @@ window.addEventListener("load", () => {
 
   // Spawn background particles.
   spawnParticles({
-    countMin: 40,
-    countMax: 50,
+    countMin: 30,
+    countMax: 40,
     lifetimeMin: 5000,
-    lifetimeMax: 20_000,
+    // TODO: Background particles need to life forever, or new ones need to be spawned every so often.
+    lifetimeMax: 50_000,
     radiusMin: 5,
-    radiusMax: 20,
+    radiusMax: 30,
     blurMin: 1,
     blurMax: 3,
     classNames: ["particle"],
-    velocityFactor: 0.01,
+    velocityFactor: 0.015,
     opacityMin: 0,
-    opacityMax: 0.2,
+    opacityMax: 0.1,
   })
 
   // Initial render.
