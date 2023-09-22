@@ -258,7 +258,7 @@ window.addEventListener("load", () => {
     blurMin: 1,
     blurMax: 3,
     classNames: ["particle"],
-    velocityFactor: 0.015,
+    velocityFactor: 0.02,
     opacityMin: 0,
     opacityMax: 0.1,
   })

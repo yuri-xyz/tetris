@@ -92,17 +92,6 @@ export default class Matrix {
     return result
   }
 
-  toFilledPositionList(): Position[] {
-    const result: Position[] = []
-
-    this.iter(({row, col}, state) => {
-      if (state !== CellState.Empty)
-        result.push({row, col})
-    })
-
-    return result
-  }
-
   rotateClockwise(): Matrix {
     const result = new Matrix(this.cols, this.rows)
 
