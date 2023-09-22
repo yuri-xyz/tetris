@@ -1,3 +1,8 @@
+@font-face {
+  font-family: "HUN";
+  src: url("/assets/hun.ttf");
+}
+
 @keyframes absorb-bottom-shock {
   40% {
     transform: translateY(10px);
@@ -39,8 +44,19 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-direction: column;
   background: url("/assets/wallpaper.jpg");
   overflow: hidden;
+  font-family: "HUN", sans-serif;
+  color: #fff;
+}
+
+.content {
+  z-index: var(--z-front);
+}
+
+.title {
+  font-size: 2rem;
 }
 
 .background-cover {

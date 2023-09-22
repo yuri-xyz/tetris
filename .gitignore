@@ -2,4 +2,7 @@
 dist/
 node_modules/
 .DS_Store
-assets/
+assets/*.mp3
+assets/*.wav
+assets/*.jpg
+assets/*.png
