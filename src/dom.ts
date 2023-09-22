@@ -1,4 +1,5 @@
 import {CellState, Const, Position} from "./game"
+import {chooseRandom} from "./util"
 
 export function $createBoardCells() {
   const $cells = []
