@@ -1,4 +1,6 @@
-import {randomInt, randomSign} from './util'
+import * as util from "./util"
+import * as dom from "./dom"
+import {Const} from "./game"
 
 export type Vector2 = {x: number, y: number}
 
@@ -68,8 +70,8 @@ export function initializeParticles() {
 }
 
 export function spawnParticles(options: ParticleSpawnOptions) {
-  const randomVelocityComponent = () => Math.random() * options.velocityFactor * randomSign()
-  const count = randomInt(options.countMin, options.countMax)
+  const randomVelocityComponent = () => Math.random() * options.velocityFactor * util.randomSign()
+  const count = util.randomInt(options.countMin, options.countMax)
 
   const convertDegreesToVelocity = (degrees: number) => {
     const radians = degrees * Math.PI / 180
@@ -82,7 +84,7 @@ export function spawnParticles(options: ParticleSpawnOptions) {
 
   for (let i = 0; i < count; i++) {
     const $element = document.createElement("div")
-    const radius = randomInt(options.radiusMin, options.radiusMax)
+    const radius = util.randomInt(options.radiusMin, options.radiusMax)
     const blurPercentage = (radius - options.radiusMin) / (options.radiusMax - options.radiusMin)
 
     $element.style.width = `${radius}px`
@@ -92,9 +94,9 @@ export function spawnParticles(options: ParticleSpawnOptions) {
     for (const className of options.classNames)
       $element.classList.add(className)
 
-    const lifetime = randomInt(options.lifetimeMin, options.lifetimeMax)
-    const x = options.position?.x ?? randomInt(0, window.innerWidth)
-    const y = options.position?.y ?? randomInt(0, window.innerHeight)
+    const lifetime = util.randomInt(options.lifetimeMin, options.lifetimeMax)
+    const x = options.position?.x ?? util.randomInt(0, window.innerWidth)
+    const y = options.position?.y ?? util.randomInt(0, window.innerHeight)
 
     const velocity = options.directionDegrees === undefined
       ? {x: randomVelocityComponent(), y: randomVelocityComponent()}
@@ -115,4 +117,46 @@ export function spawnParticles(options: ParticleSpawnOptions) {
 
     document.body.appendChild($element)
   }
+}
+
+export function playInitializationEffectSequence() {
+  util.playThemeAudio()
+  initializeParticles()
+
+  // Spawn background particles.
+  spawnParticles({
+    countMin: 30,
+    countMax: 40,
+    lifetimeMin: 5000,
+    // TODO: Background particles need to life forever, or new ones need to be spawned every so often.
+    lifetimeMax: 50_000,
+    radiusMin: 5,
+    radiusMax: 30,
+    blurMin: 1,
+    blurMax: 3,
+    classNames: ["particle"],
+    velocityFactor: 0.02,
+    opacityMin: 0,
+    opacityMax: 0.1,
+  })
+}
+
+export function playPlacementEffectSequence() {
+  util.playAudio(util.AudioAsset.Floor)
+  dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, dom.Animation.AbsorbBottomShock, 400)
+
+  spawnParticles({
+    countMin: 10,
+    countMax: 15,
+    lifetimeMin: 1000,
+    lifetimeMax: 2500,
+    radiusMin: 3,
+    radiusMax: 10,
+    blurMin: 1,
+    blurMax: 2,
+    classNames: ["particle", "action"],
+    velocityFactor: 0.2,
+    opacityMin: 0,
+    opacityMax: 0.9,
+  })
 }

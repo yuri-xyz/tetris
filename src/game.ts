@@ -11,7 +11,7 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  TICK_INTERVAL: 10_000,
+  TICK_INTERVAL: 1000,
 }
 
 export type Position = {
@@ -44,27 +44,32 @@ export type State = {
   projectionPosition: Position
 }
 
-function updateTetromino(nextTetromino: Matrix, delta: Position, state: State): State {
-  const nextState = cloneState(state)
+function updateTetromino(
+  nextTetromino: Matrix,
+  state: State,
+  delta: Position = {row: 0, col: 0}
+): State {
+  const nextTetrominoPosition: Position = {
+    row: state.tetrominoPosition.row + delta.row,
+    col: state.tetrominoPosition.col + delta.col,
+  }
 
-  // Remove the current tetromino from the board, along with
-  // its projection, since its position will be updated.
-  nextState.board = nextState.board
-    .clearMask(nextState.tetromino, nextState.tetrominoPosition)
-    .clearMask(nextState.tetromino, nextState.projectionPosition)
+  const nextProjectionPosition: Position = {
+    row: project(state),
+    col: nextTetrominoPosition.col,
+  }
 
-  // Update positions of both the tetromino and its projection.
-  nextState.tetrominoPosition.row += delta.row
-  nextState.tetrominoPosition.col += delta.col
-  nextState.projectionPosition = {row: project(nextState), col: nextState.tetrominoPosition.col}
+  const nextState = cloneState(state, {
+    board: state.board
+      .clearMask(state.tetromino, state.tetrominoPosition)
+      .clearMask(state.tetromino, state.projectionPosition)
+      .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition)
+      .insert(nextTetromino, nextTetrominoPosition),
+    tetromino: nextTetromino,
+    tetrominoPosition: nextTetrominoPosition,
+    projectionPosition: nextProjectionPosition,
+  })
 
-  // Re-insert the tetromino and its projection into the board.
-  // The order of insertion is important; the tetromino should
-  // be inserted last, so that it can take precedence over its
-  // projection, and be rendered on top of it.
-  nextState.board = nextState.board
-    .insert(createProjectionTetromino(nextTetromino), nextState.projectionPosition)
-    .insert(nextTetromino, nextState.tetrominoPosition)
 
   return nextState
 }
@@ -113,7 +118,7 @@ function wouldCollide(
   board: Matrix,
   tetromino: Matrix,
   tetrominoPosition: Position,
-  delta: Position
+  delta: Position = {row: 0, col: 0}
 ): CollisionCheckResult {
   // REVISE: Break this function down into smaller functions (e.g. `wouldCollideWithWalls`, `wouldCollideWithFloor`, `wouldCollideWithOtherTetromino`).
 
@@ -161,113 +166,6 @@ function couldMove(delta: Position, state: State): boolean {
     === CollisionCheckResult.NoCollision
 }
 
-function playPlaceEffectSequence() {
-  util.playAudio(util.AudioAsset.Floor)
-  dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, Animation.AbsorbBottomShock, 400)
-
-  effects.spawnParticles({
-    countMin: 10,
-    countMax: 15,
-    lifetimeMin: 1000,
-    lifetimeMax: 2500,
-    radiusMin: 3,
-    radiusMax: 10,
-    blurMin: 1,
-    blurMax: 2,
-    classNames: ["particle", "action"],
-    velocityFactor: 0.2,
-    opacityMin: 0,
-    opacityMax: 0.9,
-  })
-}
-
-function tick(state: State): State {
-  // REVISE: Break function down into smaller functions (e.g. `lockTetromino`, `updateTetrominoPosition`, `updateProjectionPosition`, `insertTetromino`, `insertProjection`).
-
-  const nextState: State = cloneState(state)
-
-  // Remove the current tetromino from the board, since its
-  // position will be updated.
-  nextState.board = nextState.board
-    .clearMask(nextState.tetromino, nextState.tetrominoPosition)
-
-  const collisionCheckResult = wouldCollide(
-    nextState.board,
-    nextState.tetromino,
-    nextState.tetrominoPosition,
-    {row: 1, col: 0}
-  )
-
-  // If there is a collision, lock the current tetromino, and reset the
-  // tetromino on the state.
-  if (collisionCheckResult !== CollisionCheckResult.NoCollision) {
-    if (collisionCheckResult === CollisionCheckResult.Ceiling) {
-      alert("Game over!")
-      window.location.reload()
-    }
-
-    // By inserting the tetromino into the board, a clone is created,
-    // and locked into place.
-    nextState.board = nextState.board.insert(nextState.tetromino, nextState.tetrominoPosition)
-
-    // Reset the current tetromino, and position it at the top of the board.
-    // Its projection position should also be updated.
-    nextState.tetromino = Tetromino.random
-
-    nextState.tetrominoPosition = {
-      row: 0,
-      col: calculateMiddleCol(nextState.board.cols, nextState.tetromino.cols)
-    }
-
-    nextState.projectionPosition = {
-      row: project(nextState),
-      col: nextState.tetrominoPosition.col,
-    }
-
-    playPlaceEffectSequence()
-  }
-  // Otherwise, update the tetromino position by shifting it down by one row.
-  else
-    nextState.tetrominoPosition.row += 1
-
-  // Insert the current tetromino into the board.
-  nextState.board = nextState.board
-    .insert(nextState.tetromino, nextState.tetrominoPosition)
-
-  return nextState
-}
-
-function onRotate(state: State): State | null {
-  const rotatedTetromino = state.tetromino.rotateClockwise()
-
-  // BUG: The `wouldCollide` function clears the tetromino from the board to prevent self-collision. This is likely the cause of the rotation bug.
-  const collisionCheck = wouldCollide(state.board, rotatedTetromino, state.tetrominoPosition, {row: 0, col: 0})
-
-  // Prevent the tetromino from rotating if it would collide with the walls or floor.
-  if (collisionCheck !== CollisionCheckResult.NoCollision) {
-    console.log("Denied rotation", collisionCheck)
-
-    return null
-  }
-
-  return updateTetromino(rotatedTetromino, {row: 0, col: 0}, state)
-}
-
-function onHorizontalMove(state: State, deltaCol: number): State | null {
-  const delta: Position = {row: 0, col: deltaCol}
-
-  if (couldMove(delta, state))
-    return updateTetromino(state.tetromino, delta, state)
-
-  const disallowedAnimation: Animation = deltaCol < 0
-    ? Animation.LimitedShockLeft
-    : Animation.LimitedShockRight
-
-  dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, disallowedAnimation, 300)
-
-  return null
-}
-
 function project(state: State): number {
   const projectionState = cloneState(state)
 
@@ -278,21 +176,122 @@ function project(state: State): number {
   return projectionState.tetrominoPosition.row
 }
 
-function onPlace(state: State): State | null {
-  const nextState = cloneState(state)
+function fallTick(state: State): State {
+  // REVISE: Break function down into smaller functions (e.g. `lockTetromino`, `updateTetrominoPosition`, `updateProjectionPosition`, `insertTetromino`, `insertProjection`).
 
-  nextState.board = nextState.board
-    .insert(nextState.tetromino, nextState.projectionPosition)
-    .clearMask(nextState.tetromino, nextState.tetrominoPosition)
+  const collisionCheckResult = wouldCollide(
+    state.board,
+    state.tetromino,
+    state.tetrominoPosition,
+    {row: 1, col: 0}
+  )
 
-  const middleCol = calculateMiddleCol(Const.BOARD_COLS, nextState.tetromino.cols)
+  // If there is no collision, update the tetromino position
+  // by shifting it down by one row.
+  if (collisionCheckResult === CollisionCheckResult.NoCollision)
+    return updateTetromino(state.tetromino, state, {row: 1, col: 0})
+  else if (collisionCheckResult === CollisionCheckResult.Ceiling) {
+    alert("Game over!")
+    window.location.reload()
+  }
 
-  nextState.tetromino = Tetromino.random
-  nextState.tetrominoPosition = {col: middleCol, row: 0}
-  nextState.projectionPosition = {col: middleCol, row: Const.BOARD_ROWS - nextState.tetromino.rows}
-  playPlaceEffectSequence()
+  // Otherwise, a collision occurred: lock the current tetromino,
+  // and refresh to a new tetromino.
+
+  const nextTetromino = Tetromino.random
+
+  const nextProjectionPosition = {
+    row: Const.BOARD_ROWS - nextTetromino.rows,
+    col: calculateMiddleCol(state.board.cols, nextTetromino.cols)
+  }
+
+  const nextState: State = cloneState(state, {
+    // By inserting the tetromino into the board, a clone is created,
+    // and locked into place.
+    board: state.board
+      .insert(nextTetromino, state.tetrominoPosition)
+      .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition),
+    // Reset the current tetromino, and position it at the top of the board.
+    // Its projection position should also be updated.
+    tetromino: nextTetromino,
+    tetrominoPosition: {row: 0, col: calculateMiddleCol(state.board.cols, nextTetromino.cols)},
+    projectionPosition: nextProjectionPosition,
+  })
+
+  effects.playPlacementEffectSequence()
 
   return nextState
+}
+
+function onRotate(state: State): State | null {
+  const rotatedTetromino = state.tetromino.rotateClockwise()
+
+  // BUG: The `wouldCollide` function clears the tetromino from the board to prevent self-collision. This is likely the cause of the rotation bug.
+  const collisionCheck = wouldCollide(state.board, rotatedTetromino, state.tetrominoPosition)
+
+  // Prevent the tetromino from rotating if it would collide with the walls or floor.
+  if (collisionCheck !== CollisionCheckResult.NoCollision) {
+    console.log("Denied rotation", collisionCheck)
+
+    return null
+  }
+
+  return updateTetromino(rotatedTetromino, state)
+}
+
+function onHorizontalMove(state: State, deltaCol: number): State | null {
+  const delta: Position = {row: 0, col: deltaCol}
+
+  if (couldMove(delta, state))
+    return updateTetromino(state.tetromino, state, delta)
+
+  const disallowedAnimation: Animation = deltaCol < 0
+    ? Animation.LimitedShockLeft
+    : Animation.LimitedShockRight
+
+  dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, disallowedAnimation, 300)
+
+  return null
+}
+
+function onPlace(state: State): State | null {
+  const nextTetromino = Tetromino.random
+
+  const nextProjectionPosition: Position = {
+    row: Const.BOARD_ROWS - nextTetromino.rows,
+    col: calculateMiddleCol(state.board.cols, nextTetromino.cols)
+  }
+
+  const nextState = cloneState(state, {
+    board: state.board
+      .clearMask(state.tetromino, state.tetrominoPosition)
+      .insert(state.tetromino, state.projectionPosition),
+    tetromino: nextTetromino,
+    tetrominoPosition: {row: 0, col: calculateMiddleCol(state.board.cols, nextTetromino.cols)},
+    projectionPosition: nextProjectionPosition
+  })
+
+  effects.playPlacementEffectSequence()
+
+  return nextState
+}
+
+function createInitialState(): State {
+  const initialTetromino = Tetromino.random
+  const middleCol = calculateMiddleCol(Const.BOARD_COLS, initialTetromino.cols)
+
+  const state: State = {
+    board: new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS),
+    tetromino: initialTetromino,
+    tetrominoPosition: {row: 0, col: middleCol},
+    projectionPosition: {row: Const.BOARD_ROWS - initialTetromino.rows, col: middleCol},
+  }
+
+  state.board = state.board
+    .insert(createProjectionTetromino(state.tetromino), state.projectionPosition)
+    .insert(state.tetromino, state.tetrominoPosition)
+
+  return state
 }
 
 
@@ -304,15 +303,7 @@ window.addEventListener("load", () => {
   dom.createBoardCells().forEach($cell => $board.appendChild($cell))
   console.log(`Initialized HTML board (${Const.BOARD_COLS}x${Const.BOARD_ROWS})`)
 
-  const initialTetromino = Tetromino.random
-  const middleCol = calculateMiddleCol(Const.BOARD_COLS, initialTetromino.cols)
-
-  let state: State = {
-    board: new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS),
-    tetromino: initialTetromino,
-    tetrominoPosition: {row: 0, col: middleCol},
-    projectionPosition: {row: Const.BOARD_ROWS - initialTetromino.rows, col: middleCol},
-  }
+  let state = createInitialState()
 
   window.addEventListener("keydown", event => {
     let nextState = null
@@ -327,44 +318,20 @@ window.addEventListener("load", () => {
 
     if (nextState !== null) {
       state = nextState
-      state.board = state.board.clearMask(state.tetromino, state.projectionPosition)
       dom.render(state)
     }
   })
 
   // Setup effects, animations, and audio.
-  util.playThemeAudio()
-  effects.initializeParticles()
-
-  // Spawn background particles.
-  effects.spawnParticles({
-    countMin: 30,
-    countMax: 40,
-    lifetimeMin: 5000,
-    // TODO: Background particles need to life forever, or new ones need to be spawned every so often.
-    lifetimeMax: 50_000,
-    radiusMin: 5,
-    radiusMax: 30,
-    blurMin: 1,
-    blurMax: 3,
-    classNames: ["particle"],
-    velocityFactor: 0.02,
-    opacityMin: 0,
-    opacityMax: 0.1,
-  })
+  effects.playInitializationEffectSequence()
 
   // Initial render.
-  state.board = state.board
-    .insert(createProjectionTetromino(state.tetromino), state.projectionPosition)
-    .insert(state.tetromino, state.tetrominoPosition)
-
   dom.render(state)
   console.log("Initial render")
 
   // Start game loop.
   setInterval(() => {
-    state = tick(state)
+    state = fallTick(state)
     dom.render(state)
-    console.log("tick")
   }, Const.TICK_INTERVAL)
 })
