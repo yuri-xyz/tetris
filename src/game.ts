@@ -11,7 +11,7 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  TICK_INTERVAL: 1000,
+  TICK_INTERVAL: 10_000,
 }
 
 export type Position = {
@@ -44,8 +44,42 @@ export type State = {
   projectionPosition: Position
 }
 
+function updateTetromino(nextTetromino: Matrix, delta: Position, state: State): State {
+  const nextState = cloneState(state)
+
+  // Remove the current tetromino from the board, along with
+  // its projection, since its position will be updated.
+  nextState.board = nextState.board
+    .clearMask(nextState.tetromino, nextState.tetrominoPosition)
+    .clearMask(nextState.tetromino, nextState.projectionPosition)
+
+  // Update positions of both the tetromino and its projection.
+  nextState.tetrominoPosition.row += delta.row
+  nextState.tetrominoPosition.col += delta.col
+  nextState.projectionPosition = {row: project(nextState), col: nextState.tetrominoPosition.col}
+
+  // Re-insert the tetromino and its projection into the board.
+  // The order of insertion is important; the tetromino should
+  // be inserted last, so that it can take precedence over its
+  // projection, and be rendered on top of it.
+  nextState.board = nextState.board
+    .insert(createProjectionTetromino(nextTetromino), nextState.projectionPosition)
+    .insert(nextTetromino, nextState.tetrominoPosition)
+
+  return nextState
+}
+
+function createProjectionTetromino(tetromino: Matrix): Matrix {
+  return tetromino.transform((_position, state) => {
+    if (state === CellState.Empty)
+      return state
+
+    return CellState.Projection
+  })
+}
+
 function cloneState(state: State, changes?: Partial<State>): State {
-  const clonedState: State = {
+  const result: State = {
     board: state.board.clone(),
     tetromino: state.tetromino.clone(),
     tetrominoPosition: {...state.tetrominoPosition},
@@ -53,15 +87,15 @@ function cloneState(state: State, changes?: Partial<State>): State {
   }
 
   if (changes !== undefined) {
-    clonedState.board = changes.board ?? clonedState.board
-    clonedState.tetromino = changes.tetromino ?? clonedState.tetromino
-    clonedState.tetrominoPosition = changes.tetrominoPosition ?? clonedState.tetrominoPosition
+    result.board = changes.board ?? result.board
+    result.tetromino = changes.tetromino ?? result.tetromino
+    result.tetrominoPosition = changes.tetrominoPosition ?? result.tetrominoPosition
   }
 
-  return clonedState
+  return result
 }
 
-function updateState(state: State, nextState: State | null): State {
+function chooseState(state: State, nextState: State | null): State {
   if (nextState === null)
     return state
 
@@ -81,6 +115,8 @@ function wouldCollide(
   tetrominoPosition: Position,
   delta: Position
 ): CollisionCheckResult {
+  // REVISE: Break this function down into smaller functions (e.g. `wouldCollideWithWalls`, `wouldCollideWithFloor`, `wouldCollideWithOtherTetromino`).
+
   // Remove the tetromino from the board, to prevent it from
   // colliding with itself.
   const virtualBoard = board.clearMask(tetromino, tetrominoPosition)
@@ -100,13 +136,15 @@ function wouldCollide(
   let collidedAgainstCell = false
 
   tetromino.iter(({row, col}, state) => {
-    if (state === CellState.Empty)
+    // Ignore empty or projection cells; they don't collide with anything.
+    if (state === CellState.Empty || state === CellState.Projection)
       return
 
     const boardRow = row + virtualPosition.row
     const boardCol = col + virtualPosition.col
+    const boardCell = virtualBoard.unwrap()[boardRow][boardCol]
 
-    if (virtualBoard.unwrap()[boardRow][boardCol] !== CellState.Empty)
+    if (boardCell !== CellState.Empty && boardCell !== CellState.Projection)
       collidedAgainstCell = true
   })
 
@@ -118,19 +156,40 @@ function wouldCollide(
     : CollisionCheckResult.NoCollision
 }
 
-function canMove(delta: Position, state: State): boolean {
+function couldMove(delta: Position, state: State): boolean {
   return wouldCollide(state.board, state.tetromino, state.tetrominoPosition, delta)
     === CollisionCheckResult.NoCollision
 }
 
-function tick(previousState: State): State {
-  const nextState: State = cloneState(previousState)
+function playPlaceEffectSequence() {
+  util.playAudio(util.AudioAsset.Floor)
+  dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, Animation.AbsorbBottomShock, 400)
 
-  // Remove the current tetromino from the board, along with
-  // its projection, since its position will be updated.
+  effects.spawnParticles({
+    countMin: 10,
+    countMax: 15,
+    lifetimeMin: 1000,
+    lifetimeMax: 2500,
+    radiusMin: 3,
+    radiusMax: 10,
+    blurMin: 1,
+    blurMax: 2,
+    classNames: ["particle", "action"],
+    velocityFactor: 0.2,
+    opacityMin: 0,
+    opacityMax: 0.9,
+  })
+}
+
+function tick(state: State): State {
+  // REVISE: Break function down into smaller functions (e.g. `lockTetromino`, `updateTetrominoPosition`, `updateProjectionPosition`, `insertTetromino`, `insertProjection`).
+
+  const nextState: State = cloneState(state)
+
+  // Remove the current tetromino from the board, since its
+  // position will be updated.
   nextState.board = nextState.board
     .clearMask(nextState.tetromino, nextState.tetrominoPosition)
-    .clearMask(nextState.tetromino, nextState.projectionPosition)
 
   const collisionCheckResult = wouldCollide(
     nextState.board,
@@ -151,6 +210,8 @@ function tick(previousState: State): State {
     // and locked into place.
     nextState.board = nextState.board.insert(nextState.tetromino, nextState.tetrominoPosition)
 
+    // Reset the current tetromino, and position it at the top of the board.
+    // Its projection position should also be updated.
     nextState.tetromino = Tetromino.random
 
     nextState.tetrominoPosition = {
@@ -158,44 +219,20 @@ function tick(previousState: State): State {
       col: calculateMiddleCol(nextState.board.cols, nextState.tetromino.cols)
     }
 
-    util.playAudio(util.AudioAsset.Floor)
-    dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, Animation.AbsorbBottomShock, 400)
+    nextState.projectionPosition = {
+      row: project(nextState),
+      col: nextState.tetrominoPosition.col,
+    }
 
-    effects.spawnParticles({
-      countMin: 10,
-      countMax: 15,
-      lifetimeMin: 1000,
-      lifetimeMax: 2500,
-      radiusMin: 3,
-      radiusMax: 10,
-      blurMin: 1,
-      blurMax: 2,
-      classNames: ["particle", "action"],
-      velocityFactor: 0.2,
-      opacityMin: 0,
-      opacityMax: 0.9,
-    })
+    playPlaceEffectSequence()
   }
   // Otherwise, update the tetromino position by shifting it down by one row.
   else
     nextState.tetrominoPosition.row += 1
 
-  const projectionTetromino = nextState.tetromino.transform((_position, state) => {
-    if (state === CellState.Empty)
-      return state
-
-    return CellState.Projection
-  })
-
-  const nextProjectionRow = project(nextState)
-  const nextProjectionPosition = {row: nextProjectionRow, col: nextState.tetrominoPosition.col}
-
-  nextState.projectionPosition = nextProjectionPosition
-
-  // Insert the current tetromino, and its projection into the board.
+  // Insert the current tetromino into the board.
   nextState.board = nextState.board
     .insert(nextState.tetromino, nextState.tetrominoPosition)
-    .insert(projectionTetromino, nextState.projectionPosition)
 
   return nextState
 }
@@ -213,28 +250,14 @@ function onRotate(state: State): State | null {
     return null
   }
 
-  const nextState = cloneState(state)
-
-  nextState.board = nextState.board.clearMask(nextState.tetromino, nextState.tetrominoPosition)
-  nextState.tetromino = rotatedTetromino
-  nextState.board = nextState.board.insert(nextState.tetromino, nextState.tetrominoPosition)
-
-  return nextState
+  return updateTetromino(rotatedTetromino, {row: 0, col: 0}, state)
 }
 
 function onHorizontalMove(state: State, deltaCol: number): State | null {
   const delta: Position = {row: 0, col: deltaCol}
 
-  if (canMove(delta, state)) {
-    const nextState = cloneState(state)
-
-    nextState.board = nextState.board.clearMask(nextState.tetromino, nextState.tetrominoPosition)
-    nextState.tetrominoPosition.row += delta.row
-    nextState.tetrominoPosition.col += delta.col
-    nextState.board = nextState.board.insert(nextState.tetromino, nextState.tetrominoPosition)
-
-    return nextState
-  }
+  if (couldMove(delta, state))
+    return updateTetromino(state.tetromino, delta, state)
 
   const disallowedAnimation: Animation = deltaCol < 0
     ? Animation.LimitedShockLeft
@@ -249,22 +272,25 @@ function project(state: State): number {
   const projectionState = cloneState(state)
 
   // Move as far down as possible.
-  while (canMove({row: 1, col: 0}, projectionState))
+  while (couldMove({row: 1, col: 0}, projectionState))
     projectionState.tetrominoPosition.row += 1
 
   return projectionState.tetrominoPosition.row
 }
 
 function onPlace(state: State): State | null {
-  const projectionRow = project(state)
   const nextState = cloneState(state)
 
-  nextState.tetrominoPosition = {col: state.tetrominoPosition.col, row: projectionRow}
-
-  // Remove the current tetromino, and insert the projection.
   nextState.board = nextState.board
-    .clearMask(state.tetromino, state.tetrominoPosition)
-    .insert(nextState.tetromino, nextState.tetrominoPosition)
+    .insert(nextState.tetromino, nextState.projectionPosition)
+    .clearMask(nextState.tetromino, nextState.tetrominoPosition)
+
+  const middleCol = calculateMiddleCol(Const.BOARD_COLS, nextState.tetromino.cols)
+
+  nextState.tetromino = Tetromino.random
+  nextState.tetrominoPosition = {col: middleCol, row: 0}
+  nextState.projectionPosition = {col: middleCol, row: Const.BOARD_ROWS - nextState.tetromino.rows}
+  playPlaceEffectSequence()
 
   return nextState
 }
@@ -285,20 +311,25 @@ window.addEventListener("load", () => {
     board: new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS),
     tetromino: initialTetromino,
     tetrominoPosition: {row: 0, col: middleCol},
-    projectionPosition: {row: Const.BOARD_ROWS - 1, col: middleCol},
+    projectionPosition: {row: Const.BOARD_ROWS - initialTetromino.rows, col: middleCol},
   }
 
   window.addEventListener("keydown", event => {
+    let nextState = null
+
     // TODO: Handle out of bounds. Simply ignore if it would go out of bounds (use a `constrain` helper function).
     switch (event.key) {
-      case "ArrowLeft": state = updateState(state, onHorizontalMove(state, -1)); break
-      case "ArrowRight": state = updateState(state, onHorizontalMove(state, 1)); break
-      case "ArrowUp": state = updateState(state, onRotate(state)); break
-      case " ": state = updateState(state, onPlace(state)); break
+      case "ArrowLeft": nextState = chooseState(state, onHorizontalMove(state, -1)); break
+      case "ArrowRight": nextState = chooseState(state, onHorizontalMove(state, 1)); break
+      case "ArrowUp": nextState = chooseState(state, onRotate(state)); break
+      case " ": nextState = chooseState(state, onPlace(state)); break
     }
 
-    // OPTIMIZE: If the state wasn't updated, there's no need to force a re-render.
-    dom.render(state)
+    if (nextState !== null) {
+      state = nextState
+      state.board = state.board.clearMask(state.tetromino, state.projectionPosition)
+      dom.render(state)
+    }
   })
 
   // Setup effects, animations, and audio.
@@ -323,7 +354,10 @@ window.addEventListener("load", () => {
   })
 
   // Initial render.
-  state.board = state.board.insert(state.tetromino, state.tetrominoPosition)
+  state.board = state.board
+    .insert(createProjectionTetromino(state.tetromino), state.projectionPosition)
+    .insert(state.tetromino, state.tetrominoPosition)
+
   dom.render(state)
   console.log("Initial render")
 
