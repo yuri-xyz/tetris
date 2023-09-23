@@ -1,22 +1,26 @@
 import {State} from "./state"
 import * as util from "./util"
 import * as game from "./game"
-import Tetromino from "./tetromino"
+import * as effects from "./effects"
 
 export function onFallTick(state: State): State {
   // REVISE: Break function down into smaller functions (e.g. `lockTetromino`, `updateTetrominoPosition`, `updateProjectionPosition`, `insertTetromino`, `insertProjection`).
+
+  const fallDelta: game.Position = {row: 1, col: 0}
 
   const collisionCheckResult = game.wouldCollide(
     state.board,
     state.tetromino,
     state.tetrominoPosition,
-    {row: 1, col: 0}
+    fallDelta
   )
+
+  const nextState = state.addTetrominoPositionDelta(fallDelta)
 
   // If there is no collision, update the tetromino position
   // by shifting it down by one row.
   if (collisionCheckResult === game.CollisionCheckResult.NoCollision)
-    return game.updateTetromino(state.tetromino, state, {row: 1, col: 0})
+    return game.updateTetrominoState(nextState, game.TetrominoUpdate.Recompute)
   else if (collisionCheckResult === game.CollisionCheckResult.Ceiling) {
     alert("Game over!")
     window.location.reload()
@@ -32,32 +36,11 @@ export function onFallTick(state: State): State {
   // At this point, a collision occurred: lock the current tetromino,
   // and refresh to a new tetromino.
 
-  const nextTetromino = Tetromino.random
-
-  const nextTetrominoPosition: game.Position = {
-    row: 0,
-    col: game.calculateMiddleCol(state.board.cols, nextTetromino.cols)
-  }
-
-  const nextProjectionPosition: game.Position = {
-    row: game.Const.BOARD_ROWS - nextTetromino.rows,
-    col: nextTetrominoPosition.col
-  }
-
-  const nextState = state.update({
-    // By inserting the tetromino into the board, a clone is created,
-    // and locked into place.
-    board: state.board
-      .insert(nextTetromino, state.tetrominoPosition)
-      .insert(game.createProjectionTetromino(nextTetromino), nextProjectionPosition),
-    // Reset the current tetromino, and position it at the top of the board.
-    // Its projection position should also be updated.
-    tetromino: nextTetromino,
-    tetrominoPosition: nextTetrominoPosition,
-    projectionPosition: nextProjectionPosition,
-  })
-
-  return onTetrominoPlacement(nextState, state.tetrominoPosition.row, state.tetromino.rows)
+  return onTetrominoPlacement(
+    game.updateTetrominoState(state, game.TetrominoUpdate.PlaceInPlace),
+    state.tetrominoPosition.row,
+    state.tetromino.rows
+  )
 }
 
 export function onTetrominoPlacement(
@@ -94,10 +77,16 @@ export function onTetrominoPlacement(
       rowsToClear.push(row)
   }
 
+  // FIXME: This is temporary.
+  if (rowsToClear.length > 0)
+    alert("Clearing rows!")
+
   let nextBoard = stateAfterPlacement.board.clone()
 
   for (const row of rowsToClear)
     nextBoard = nextBoard.clearRowAndCollapse(row)
+
+  effects.playPlacementEffectSequence()
 
   return stateAfterPlacement.update({board: nextBoard})
 }

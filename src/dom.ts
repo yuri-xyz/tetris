@@ -31,11 +31,10 @@ export function updateCellElement(
   const $cell = getCellElement(position)
 
   $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state
+  $cell.classList.remove(...Object.values(CellState))
 
   if (state !== CellState.Empty)
     $cell.classList.add(state)
-  else
-    $cell.classList.remove(...Object.values(CellState))
 }
 
 function getCellElement(position: Position): HTMLElement {

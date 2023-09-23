@@ -15,6 +15,12 @@ export const Const = {
   TICK_INTERVAL: 1000,
 }
 
+export enum TetrominoUpdate {
+  Recompute,
+  PlaceInPlace,
+  PlaceIntoProjection
+}
+
 export type Position = {
   row: number
   col: number
@@ -38,35 +44,6 @@ export enum CollisionCheckResult {
   Ceiling,
 }
 
-export function updateTetromino(
-  nextTetromino: Matrix,
-  state: State,
-  delta: Position = {row: 0, col: 0}
-): State {
-  const nextTetrominoPosition: Position = {
-    row: state.tetrominoPosition.row + delta.row,
-    col: state.tetrominoPosition.col + delta.col,
-  }
-
-  const nextProjectionPosition: Position = {
-    row: project(state),
-    col: nextTetrominoPosition.col,
-  }
-
-  const nextState = state.update({
-    board: state.board
-      .clearMask(state.tetromino, state.tetrominoPosition)
-      .clearMask(state.tetromino, state.projectionPosition)
-      .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition)
-      .insert(nextTetromino, nextTetrominoPosition),
-    tetromino: nextTetromino,
-    tetrominoPosition: nextTetrominoPosition,
-    projectionPosition: nextProjectionPosition,
-  })
-
-  return nextState
-}
-
 export function createProjectionTetromino(tetromino: Matrix): Matrix {
   return tetromino.transform((_position, state) => {
     if (state === CellState.Empty)
@@ -76,11 +53,48 @@ export function createProjectionTetromino(tetromino: Matrix): Matrix {
   })
 }
 
-function chooseState(state: State, nextState: State | null): State {
-  if (nextState === null)
-    return state
+export function updateTetrominoState(state: State, update: TetrominoUpdate): State {
+  const nextTetromino = update === TetrominoUpdate.Recompute
+    ? state.tetromino
+    : Tetromino.random
 
-  return nextState
+  // This is the position where new tetrominos enter the board.
+  const entryPosition: Position = {
+    row: 0,
+    col: calculateMiddleCol(state.board.cols, nextTetromino.cols)
+  }
+
+  const nextPosition: Position = update === TetrominoUpdate.Recompute
+    ? state.tetrominoPosition
+    : entryPosition
+
+  const nextProjectionPosition2: Position = {
+    // FIXME: Cannot base off the old board.
+    row: project(state.board, nextTetromino, nextPosition),
+    col: nextPosition.col,
+  }
+
+  let nextBoard = state.board
+    // Clear old tetromino.
+    .clearMask(state.tetromino, state.tetrominoPosition)
+    // Clear old projection.
+    .clearMask(state.tetromino, state.projectionPosition)
+    // Insert the new projection.
+    .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition2)
+    // Update or insert the new tetromino.
+    .insert(nextTetromino, nextPosition)
+
+  const nextProjectionPosition: Position = {
+    row: project(nextBoard, nextTetromino, nextPosition),
+    col: nextPosition.col,
+  }
+
+  return state.update({
+    board: nextBoard,
+    tetromino: nextTetromino,
+    tetrominoPosition: nextPosition,
+    projectionPosition: nextProjectionPosition
+  })
 }
 
 export function calculateMiddleCol(cols: number, tetrominoCols: number): number {
@@ -137,19 +151,28 @@ export function wouldCollide(
     : CollisionCheckResult.NoCollision
 }
 
-export function couldMove(delta: Position, state: State): boolean {
-  return wouldCollide(state.board, state.tetromino, state.tetrominoPosition, delta)
+export function couldMove(
+  delta: Position,
+  board: Matrix,
+  tetromino: Matrix,
+  tetrominoPosition: Position
+): boolean {
+  return wouldCollide(board, tetromino, tetrominoPosition, delta)
     === CollisionCheckResult.NoCollision
 }
 
-export function project(state: State): number {
-  const projectionState = state.clone()
+export function project(
+  board: Matrix,
+  tetromino: Matrix,
+  tetrominoPosition: Position
+): number {
+  const projectionPosition = {...tetrominoPosition}
 
   // Move as far down as possible.
-  while (couldMove({row: 1, col: 0}, projectionState))
-    projectionState.tetrominoPosition.row += 1
+  while (couldMove({row: 1, col: 0}, board, tetromino, projectionPosition))
+    projectionPosition.row += 1
 
-  return projectionState.tetrominoPosition.row
+  return projectionPosition.row
 }
 
 function createInitialState(): State {
@@ -162,6 +185,7 @@ function createInitialState(): State {
     col: middleCol
   }
 
+  // REVISE: Avoid using `insert`, instead prefer `createNextTetrominoState`.
   const initialBoard = new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS)
     .insert(createProjectionTetromino(initialTetromino), initialProjectionPosition)
     .insert(initialTetromino, initialTetrominoPosition)
@@ -189,10 +213,10 @@ window.addEventListener("load", () => {
 
     // TODO: Handle out of bounds. Simply ignore if it would go out of bounds (use a `constrain` helper function).
     switch (event.key) {
-      case "ArrowLeft": nextState = chooseState(state, playerEvents.onPlayerHorizontalShiftInput(state, -1)); break
-      case "ArrowRight": nextState = chooseState(state, playerEvents.onPlayerHorizontalShiftInput(state, 1)); break
-      case "ArrowUp": nextState = chooseState(state, playerEvents.onPlayerRotateInput(state)); break
-      case " ": nextState = chooseState(state, playerEvents.onPlayerPlacementInput(state)); break
+      case "ArrowLeft": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, -1)); break
+      case "ArrowRight": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, 1)); break
+      case "ArrowUp": nextState = state.choose(playerEvents.onPlayerRotateInput(state)); break
+      case " ": nextState = state.choose(playerEvents.onPlayerPlacementInput(state)); break
     }
 
     if (nextState !== null) {
