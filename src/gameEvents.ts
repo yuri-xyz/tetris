@@ -4,8 +4,7 @@ import * as game from "./game"
 import * as effects from "./effects"
 
 export function onFallTick(state: State): State {
-  // REVISE: Break function down into smaller functions (e.g. `lockTetromino`, `updateTetrominoPosition`, `updateProjectionPosition`, `insertTetromino`, `insertProjection`).
-
+  // On every tick, shift the tetromino down by one row.
   const fallDelta: game.Position = {row: 1, col: 0}
 
   const collisionCheckResult = game.wouldCollide(
@@ -15,12 +14,18 @@ export function onFallTick(state: State): State {
     fallDelta
   )
 
-  const nextState = state.addTetrominoPositionDelta(fallDelta)
-
   // If there is no collision, update the tetromino position
   // by shifting it down by one row.
-  if (collisionCheckResult === game.CollisionCheckResult.NoCollision)
-    return game.updateTetrominoState(nextState, game.TetrominoUpdate.Recompute)
+  if (collisionCheckResult === game.CollisionCheckResult.NoCollision) {
+    const nextState = state.addTetrominoPositionDelta(fallDelta)
+
+    return game.refreshState(
+      state.tetrominoPosition,
+      nextState,
+      game.StateChange.TetrominoUpdated
+    )
+  }
+  // If there was a collision with a ceiling, the game is over.
   else if (collisionCheckResult === game.CollisionCheckResult.Ceiling) {
     alert("Game over!")
     window.location.reload()
@@ -33,11 +38,10 @@ export function onFallTick(state: State): State {
     "collision check result should only be composed of three variants"
   )
 
-  // At this point, a collision occurred: lock the current tetromino,
-  // and refresh to a new tetromino.
-
+  // At this point, a collision occurred: lock the current tetromino
+  // in-place, and refresh to a new tetromino.
   return onTetrominoPlacement(
-    game.updateTetrominoState(state, game.TetrominoUpdate.PlaceInPlace),
+    game.refreshState(state.tetrominoPosition, state, game.StateChange.PlaceInPlace),
     state.tetrominoPosition.row,
     state.tetromino.rows
   )

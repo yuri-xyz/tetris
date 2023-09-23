@@ -15,8 +15,8 @@ export const Const = {
   TICK_INTERVAL: 1000,
 }
 
-export enum TetrominoUpdate {
-  Recompute,
+export enum StateChange {
+  TetrominoUpdated,
   PlaceInPlace,
   PlaceIntoProjection
 }
@@ -53,32 +53,43 @@ export function createProjectionTetromino(tetromino: Matrix): Matrix {
   })
 }
 
-export function updateTetrominoState(state: State, update: TetrominoUpdate): State {
-  const nextTetromino = update === TetrominoUpdate.Recompute
-    ? state.tetromino
+export function addPositions(a: Position, b: Position): Position {
+  return {
+    row: a.row + b.row,
+    col: a.col + b.col,
+  }
+}
+
+export function refreshState(
+  oldTetrominoPosition: Position,
+  newState: State,
+  change: StateChange
+): State {
+  const nextTetromino = change === StateChange.TetrominoUpdated
+    ? newState.tetromino
     : Tetromino.random
 
   // This is the position where new tetrominos enter the board.
   const entryPosition: Position = {
     row: 0,
-    col: calculateMiddleCol(state.board.cols, nextTetromino.cols)
+    col: calculateMiddleCol(newState.board.cols, nextTetromino.cols)
   }
 
-  const nextPosition: Position = update === TetrominoUpdate.Recompute
-    ? state.tetrominoPosition
+  const nextPosition: Position = change === StateChange.TetrominoUpdated
+    ? newState.tetrominoPosition
     : entryPosition
 
   const nextProjectionPosition2: Position = {
     // FIXME: Cannot base off the old board.
-    row: project(state.board, nextTetromino, nextPosition),
+    row: project(newState.board, nextTetromino, nextPosition),
     col: nextPosition.col,
   }
 
-  let nextBoard = state.board
+  const nextBoard = newState.board
     // Clear old tetromino.
-    .clearMask(state.tetromino, state.tetrominoPosition)
+    .clearMask(newState.tetromino, oldTetrominoPosition)
     // Clear old projection.
-    .clearMask(state.tetromino, state.projectionPosition)
+    .clearMask(newState.tetromino, newState.projectionPosition)
     // Insert the new projection.
     .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition2)
     // Update or insert the new tetromino.
@@ -89,7 +100,7 @@ export function updateTetrominoState(state: State, update: TetrominoUpdate): Sta
     col: nextPosition.col,
   }
 
-  return state.update({
+  return newState.update({
     board: nextBoard,
     tetromino: nextTetromino,
     tetrominoPosition: nextPosition,

@@ -11,7 +11,11 @@ export function onPlayerHorizontalShiftInput(state: State, deltaCol: number): St
   if (isValidMove) {
     const nextState = state.addTetrominoPositionDelta(delta)
 
-    return game.updateTetrominoState(nextState, game.TetrominoUpdate.Recompute)
+    return game.refreshState(
+      state.tetrominoPosition,
+      nextState,
+      game.StateChange.TetrominoUpdated
+    )
   }
 
   const disallowedAnimation: dom.Animation = deltaCol < 0
@@ -26,8 +30,14 @@ export function onPlayerHorizontalShiftInput(state: State, deltaCol: number): St
 }
 
 export function onPlayerPlacementInput(state: State): State | null {
+  const nextState = game.refreshState(
+    state.tetrominoPosition,
+    state,
+    game.StateChange.PlaceIntoProjection
+  )
+
   return gameEvents.onTetrominoPlacement(
-    game.updateTetrominoState(state, game.TetrominoUpdate.PlaceIntoProjection),
+    nextState,
     state.projectionPosition.row,
     state.tetromino.rows
   )
@@ -52,5 +62,9 @@ export function onPlayerRotateInput(state: State): State | null {
 
   const nextState = state.update({tetromino: rotatedTetromino})
 
-  return game.updateTetrominoState(nextState, game.TetrominoUpdate.Recompute)
+  return game.refreshState(
+    state.tetrominoPosition,
+    nextState,
+    game.StateChange.TetrominoUpdated
+  )
 }
