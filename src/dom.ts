@@ -1,4 +1,5 @@
-import {CellState, Const, Position, State} from "./game"
+import {CellState, Const, Position} from "./game"
+import {State} from "./state"
 
 export enum Animation {
   AbsorbBottomShock = "absorb-bottom-shock",
