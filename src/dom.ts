@@ -1,7 +1,12 @@
-import {CellState, Const, Position} from "./game"
-import {chooseRandom} from "./util"
+import {CellState, Const, Position, State} from "./game"
 
-export function $createBoardCells() {
+export enum Animation {
+  AbsorbBottomShock = "absorb-bottom-shock",
+  LimitedShockLeft = "limited-shock-left",
+  LimitedShockRight = "limited-shock-right",
+}
+
+export function createBoardCells() {
   const $cells = []
 
   for (let row = 0; row < Const.BOARD_ROWS; row++)
@@ -18,11 +23,11 @@ export function $createBoardCells() {
   return $cells
 }
 
-export function $updateCellState(
+export function updateCellElement(
   position: Position,
   state: CellState,
 ) {
-  const $cell = $getCell(position)
+  const $cell = getCellElement(position)
 
   $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state
 
@@ -32,7 +37,7 @@ export function $updateCellState(
     $cell.classList.remove(...Object.values(CellState))
 }
 
-function $getCell(position: Position): HTMLElement {
+function getCellElement(position: Position): HTMLElement {
   const $cell = document.querySelector<HTMLElement>(`[data-row="${position.row}"][data-col="${position.col}"]`)
 
   if ($cell === null)
@@ -41,13 +46,7 @@ function $getCell(position: Position): HTMLElement {
   return $cell
 }
 
-export enum Animation {
-  AbsorbBottomShock = "absorb-bottom-shock",
-  LimitedShockLeft = "limited-shock-left",
-  LimitedShockRight = "limited-shock-right",
-}
-
-export function $playAnimation(
+export function playAnimation(
   $element: HTMLElement,
   animation: Animation,
   duration: number
@@ -67,4 +66,10 @@ export function $playAnimation(
       resolve()
     }, duration)
   })
+}
+
+export function render(state: State) {
+  // REVISE: Render step should be using `requestAnimationFrame`, while the game loop (ticks) should be using `setInterval`. By doing this, inputs from the player will be immediately reflected in the next FRAME, and not in the next TICK. This will make the game feel more responsive. Or perhaps, simply re-render immediately after an input is received.
+
+  state.board.iter((position, state) => updateCellElement(position, state))
 }

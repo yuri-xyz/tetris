@@ -26,7 +26,20 @@ export function chooseRandom<T>(choices: T[]): T {
   return choices[randomInt(0, choices.length)]
 }
 
-export function playAudio(asset: AudioAsset) {
+export function preloadAudios(audios: AudioAsset[]) {
+  audios.forEach(audio => {
+    if (audioCache.has(audio))
+      return
+
+    const audioElement = new Audio(`/assets/${audio}`)
+
+    audioElement.volume = 0
+    audioElement.play().then(() => audioElement.pause())
+    audioCache.set(audio, audioElement)
+  })
+}
+
+export function playAudio(asset: AudioAsset, loop = false) {
   if (!audioCache.has(asset)) {
     const audio = new Audio(`/assets/${asset}`)
 
@@ -36,6 +49,7 @@ export function playAudio(asset: AudioAsset) {
   const audio = audioCache.get(asset)!
 
   audio.currentTime = 0
+  audio.loop = loop
   audio.play()
 }
 

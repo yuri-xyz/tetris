@@ -28,6 +28,7 @@ type ParticleSpawnOptions = {
   velocityFactor: number
   opacityMin: number
   opacityMax: number
+  directionDegrees?: number
 }
 
 const particles: Particle[] = []
@@ -70,6 +71,15 @@ export function spawnParticles(options: ParticleSpawnOptions) {
   const randomVelocityComponent = () => Math.random() * options.velocityFactor * randomSign()
   const count = randomInt(options.countMin, options.countMax)
 
+  const convertDegreesToVelocity = (degrees: number) => {
+    const radians = degrees * Math.PI / 180
+
+    return {
+      x: Math.cos(radians),
+      y: Math.sin(radians),
+    }
+  }
+
   for (let i = 0; i < count; i++) {
     const $element = document.createElement("div")
     const radius = randomInt(options.radiusMin, options.radiusMax)
@@ -86,9 +96,14 @@ export function spawnParticles(options: ParticleSpawnOptions) {
     const x = options.position?.x ?? randomInt(0, window.innerWidth)
     const y = options.position?.y ?? randomInt(0, window.innerHeight)
 
+    const velocity = options.directionDegrees === undefined
+      ? {x: randomVelocityComponent(), y: randomVelocityComponent()}
+      // OPTIMIZE: The direction velocity only needs to be calculated once, if the direction degrees is provided.
+      : convertDegreesToVelocity(options.directionDegrees)
+
     particles.push({
       position: {x, y},
-      velocity: {x: randomVelocityComponent(), y: randomVelocityComponent()},
+      velocity,
       radius: 0,
       color: "#fff",
       maxLifetime: lifetime,

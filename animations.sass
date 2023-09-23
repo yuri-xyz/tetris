@@ -1,0 +1,47 @@
+@keyframes shine-through
+  0%
+    opacity: 0
+    transform: translateX(-150%) rotate(45deg)
+
+  50%
+    opacity: 0.5
+
+  100%
+    opacity: 0
+    transform: translateX(150%) rotate(45deg)
+
+@keyframes absorb-bottom-shock
+  40%
+    transform: translateY(10px)
+
+@keyframes limited-shock-left
+  40%
+    transform: translateX(-5px)
+
+@keyframes limited-shock-right
+  40%
+    transform: translateX(5px)
+
+.shine-button
+  position: relative
+  width: 150px
+  height: 50px
+  background-color: #333
+  color: white
+  text-align: center
+  line-height: 50px
+  overflow: hidden
+  border-radius: 5px
+
+.shine-button:before
+  content: ""
+  position: absolute
+  top: -150%
+  left: -150%
+  width: 200%
+  height: 200%
+  background: rgba(255, 255, 255, 0.5)
+  opacity: 0
+  transform: rotate(45deg)
+  pointer-events: none
+  animation: shine 3s infinite ease-in-out

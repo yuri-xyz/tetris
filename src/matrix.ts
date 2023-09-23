@@ -29,6 +29,16 @@ export default class Matrix {
         callback({row, col}, this.inner[row][col])
   }
 
+  transform(callback: (position: Position, state: CellState) => CellState): Matrix {
+    const result = this.clone()
+
+    result.iter((position, state) => {
+      result.inner[position.row][position.col] = callback(position, state)
+    })
+
+    return result
+  }
+
   set(position: Position, state: CellState): Matrix {
     assert(position.row >= 0 && position.row < this.rows, "row should be within bounds")
     assert(position.col >= 0 && position.col < this.cols, "col should be within bounds")
@@ -44,7 +54,7 @@ export default class Matrix {
     return this.inner
   }
 
-  clear(mask: Matrix, offset: Position): Matrix {
+  clearMask(mask: Matrix, offset: Position): Matrix {
     assert(mask.rows + offset.row <= this.rows, "mask matrix should have fewer rows")
     assert(mask.cols + offset.col <= this.cols, "mask matrix should have fewer cols")
 
@@ -116,5 +126,11 @@ export default class Matrix {
     })
 
     return result
+  }
+
+  fitsWithin(other: Matrix, offset: Position): boolean {
+    return offset.row >= 0 && offset.col >= 0
+      && offset.row + this.rows <= other.rows
+      && offset.col + this.cols <= other.cols
   }
 }
