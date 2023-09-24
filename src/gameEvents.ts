@@ -1,4 +1,4 @@
-import {State} from "./state"
+import {PlacementPosition, State} from "./state"
 import * as util from "./util"
 import * as game from "./game"
 import * as effects from "./effects"
@@ -16,19 +16,11 @@ export function onFallTick(state: State): State {
 
   // If there is no collision, update the tetromino position
   // by shifting it down by one row.
-  if (collisionCheckResult === game.CollisionCheckResult.NoCollision) {
-    const nextState = state.addTetrominoPositionDelta(fallDelta)
-
-    return game.refreshState(
-      state.tetrominoPosition,
-      nextState,
-      game.StateChange.TetrominoUpdated
-    )
-  }
+  if (collisionCheckResult === game.CollisionCheckResult.NoCollision)
+    return state.clearTetromino().addTetrominoPositionDelta(fallDelta)
   // If there was a collision with a ceiling, the game is over.
   else if (collisionCheckResult === game.CollisionCheckResult.Ceiling) {
-    alert("Game over!")
-    window.location.reload()
+    onTetrominoCollisionWithCeiling()
 
     return state
   }
@@ -40,8 +32,10 @@ export function onFallTick(state: State): State {
 
   // At this point, a collision occurred: lock the current tetromino
   // in-place, and refresh to a new tetromino.
+  const nextState = state.placeTetromino(PlacementPosition.InPlace).refreshTetromino()
+
   return onTetrominoPlacement(
-    game.refreshState(state.tetrominoPosition, state, game.StateChange.PlaceInPlace),
+    nextState,
     state.tetrominoPosition.row,
     state.tetromino.rows
   )
@@ -93,4 +87,9 @@ export function onTetrominoPlacement(
   effects.playPlacementEffectSequence()
 
   return stateAfterPlacement.update({board: nextBoard})
+}
+
+export function onTetrominoCollisionWithCeiling() {
+  alert("Game over!")
+  window.location.reload()
 }

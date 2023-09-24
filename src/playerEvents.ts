@@ -1,24 +1,17 @@
 import {Position} from "./game"
 import * as game from "./game"
-import {State} from "./state"
+import {PlacementPosition, State} from "./state"
 import * as gameEvents from "./gameEvents"
 import * as dom from "./dom"
 
-export function onPlayerHorizontalShiftInput(state: State, deltaCol: number): State | null {
-  const delta: Position = {row: 0, col: deltaCol}
+export function onPlayerHorizontalShiftInput(state: State, isLeft: boolean): State | null {
+  const delta: Position = {row: 0, col: isLeft ? -1 : 1}
   const isValidMove = game.couldMove(delta, state.board, state.tetromino, state.tetrominoPosition)
 
-  if (isValidMove) {
-    const nextState = state.addTetrominoPositionDelta(delta)
+  if (isValidMove)
+    return state.clearTetromino().addTetrominoPositionDelta(delta)
 
-    return game.refreshState(
-      state.tetrominoPosition,
-      nextState,
-      game.StateChange.TetrominoUpdated
-    )
-  }
-
-  const disallowedAnimation: dom.Animation = deltaCol < 0
+  const disallowedAnimation: dom.Animation = isLeft
     ? dom.Animation.LimitedShockLeft
     : dom.Animation.LimitedShockRight
 
@@ -30,11 +23,10 @@ export function onPlayerHorizontalShiftInput(state: State, deltaCol: number): St
 }
 
 export function onPlayerPlacementInput(state: State): State | null {
-  const nextState = game.refreshState(
-    state.tetrominoPosition,
-    state,
-    game.StateChange.PlaceIntoProjection
-  )
+  const nextState = state
+    .clearTetromino()
+    .placeTetromino(PlacementPosition.IntoProjection)
+    .refreshTetromino()
 
   return gameEvents.onTetrominoPlacement(
     nextState,
@@ -60,11 +52,5 @@ export function onPlayerRotateInput(state: State): State | null {
     return null
   }
 
-  const nextState = state.update({tetromino: rotatedTetromino})
-
-  return game.refreshState(
-    state.tetrominoPosition,
-    nextState,
-    game.StateChange.TetrominoUpdated
-  )
+  return state.clearTetromino().update({tetromino: rotatedTetromino})
 }

@@ -12,13 +12,7 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  TICK_INTERVAL: 1000,
-}
-
-export enum StateChange {
-  TetrominoUpdated,
-  PlaceInPlace,
-  PlaceIntoProjection
+  TICK_INTERVAL: 200,
 }
 
 export type Position = {
@@ -60,54 +54,6 @@ export function addPositions(a: Position, b: Position): Position {
   }
 }
 
-export function refreshState(
-  oldTetrominoPosition: Position,
-  newState: State,
-  change: StateChange
-): State {
-  const nextTetromino = change === StateChange.TetrominoUpdated
-    ? newState.tetromino
-    : Tetromino.random
-
-  // This is the position where new tetrominos enter the board.
-  const entryPosition: Position = {
-    row: 0,
-    col: calculateMiddleCol(newState.board.cols, nextTetromino.cols)
-  }
-
-  const nextPosition: Position = change === StateChange.TetrominoUpdated
-    ? newState.tetrominoPosition
-    : entryPosition
-
-  const nextProjectionPosition2: Position = {
-    // FIXME: Cannot base off the old board.
-    row: project(newState.board, nextTetromino, nextPosition),
-    col: nextPosition.col,
-  }
-
-  const nextBoard = newState.board
-    // Clear old tetromino.
-    .clearMask(newState.tetromino, oldTetrominoPosition)
-    // Clear old projection.
-    .clearMask(newState.tetromino, newState.projectionPosition)
-    // Insert the new projection.
-    .insert(createProjectionTetromino(nextTetromino), nextProjectionPosition2)
-    // Update or insert the new tetromino.
-    .insert(nextTetromino, nextPosition)
-
-  const nextProjectionPosition: Position = {
-    row: project(nextBoard, nextTetromino, nextPosition),
-    col: nextPosition.col,
-  }
-
-  return newState.update({
-    board: nextBoard,
-    tetromino: nextTetromino,
-    tetrominoPosition: nextPosition,
-    projectionPosition: nextProjectionPosition
-  })
-}
-
 export function calculateMiddleCol(cols: number, tetrominoCols: number): number {
   const middleCol = Math.floor(cols / 2)
   const tetrominoMiddleCol = Math.floor(tetrominoCols / 2)
@@ -127,16 +73,16 @@ export function wouldCollide(
   // colliding with itself.
   const virtualBoard = board.clearMask(tetromino, tetrominoPosition)
 
-  const virtualPosition = {
+  const simulatedPosition = {
     row: tetrominoPosition.row + delta.row,
     col: tetrominoPosition.col + delta.col,
   }
 
   // Check left and right columns.
-  if (virtualPosition.col < 0 || virtualPosition.col + tetromino.cols > virtualBoard.cols)
+  if (simulatedPosition.col < 0 || simulatedPosition.col + tetromino.cols > virtualBoard.cols)
     return CollisionCheckResult.WallsOrFloorOrOtherTetromino
   // Check bottom of the board.
-  else if (virtualPosition.row + tetromino.rows > virtualBoard.rows)
+  else if (simulatedPosition.row + tetromino.rows > virtualBoard.rows)
     return CollisionCheckResult.WallsOrFloorOrOtherTetromino
 
   let collidedAgainstCell = false
@@ -146,8 +92,8 @@ export function wouldCollide(
     if (state === CellState.Empty || state === CellState.Projection)
       return
 
-    const boardRow = row + virtualPosition.row
-    const boardCol = col + virtualPosition.col
+    const boardRow = row + simulatedPosition.row
+    const boardCol = col + simulatedPosition.col
     const boardCell = virtualBoard.unwrap()[boardRow][boardCol]
 
     if (boardCell !== CellState.Empty && boardCell !== CellState.Projection)
@@ -172,7 +118,7 @@ export function couldMove(
     === CollisionCheckResult.NoCollision
 }
 
-export function project(
+export function projectRow(
   board: Matrix,
   tetromino: Matrix,
   tetrominoPosition: Position
@@ -224,8 +170,8 @@ window.addEventListener("load", () => {
 
     // TODO: Handle out of bounds. Simply ignore if it would go out of bounds (use a `constrain` helper function).
     switch (event.key) {
-      case "ArrowLeft": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, -1)); break
-      case "ArrowRight": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, 1)); break
+      case "ArrowLeft": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, true)); break
+      case "ArrowRight": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, false)); break
       case "ArrowUp": nextState = state.choose(playerEvents.onPlayerRotateInput(state)); break
       case " ": nextState = state.choose(playerEvents.onPlayerPlacementInput(state)); break
     }
