@@ -24,7 +24,7 @@ export function onFallTick(state: State): State {
       .placeTetromino(PlacementPosition.InPlace)
   // If there was a collision with a ceiling, the game is over.
   else if (collisionCheckResult === game.CollisionCheckResult.Ceiling) {
-    onTetrominoCollisionWithCeiling()
+    onTetrominoCollisionWithCeiling(state)
 
     return state
   }
@@ -43,7 +43,7 @@ export function onFallTick(state: State): State {
 
   return onTetrominoPlacement(
     nextState,
-    nextState.tetrominoPosition.row,
+    state.tetrominoPosition.row,
     state.tetromino.rows
   )
 }
@@ -75,7 +75,7 @@ export function onTetrominoPlacement(
 
   const rowsToClear: number[] = []
 
-  for (let row = placementRowStart; row < endRow; row++) {
+  for (let row = placementRowStart; row <= endRow; row++) {
     const isRowFilled = nextState.board.unwrap()[row]
       .every(cell => cell !== game.CellState.Empty && cell !== game.CellState.Projection)
 
@@ -85,21 +85,33 @@ export function onTetrominoPlacement(
       rowsToClear.push(row)
   }
 
-  // FIXME: This is temporary.
-  if (rowsToClear.length > 0) {
-    console.log(rowsToClear)
-    alert("Clearing rows!")
-  }
+  const scoreAcquired = game.Const.ROW_SCORE * rowsToClear.length
+
+  // Increment score when clearing rows.
+  const nextScore = rowsToClear.length > 0
+    ? stateAfterPlacement.score + scoreAcquired
+    : stateAfterPlacement.score
 
   const nextBoard = rowsToClear.reduce(
     (nextBoard, row) => nextBoard.clearRowAndCollapse(row),
     nextState.board.clone()
   )
 
-  return nextState.modify({board: nextBoard})
+  const nextFallTickInterval = game.calculateNextFallTickInterval(
+    stateAfterPlacement.fallTickInterval,
+    rowsToClear.length
+  )
+
+  return nextState.modify({
+    board: nextBoard,
+    score: nextScore,
+    // Only update fall tick interval if there was at least
+    // one row cleared.
+    fallTickInterval: rowsToClear.length > 0 ? nextFallTickInterval : undefined
+  })
 }
 
-export function onTetrominoCollisionWithCeiling() {
-  alert("Game over!")
+export function onTetrominoCollisionWithCeiling(state: State) {
+  alert(`Game over! Score: ${state.score}`)
   window.location.reload()
 }

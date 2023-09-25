@@ -12,8 +12,10 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  TICK_INTERVAL: 200,
-  IS_DEBUG_MODE: true
+  IS_DEBUG_MODE: false,
+  INITIAL_FALL_TICK_INTERVAL: 700,
+  ROW_SCORE: 100,
+  SPEED_INCREASE_PERCENT_PER_ROW: 5
 }
 
 export type Position = {
@@ -53,6 +55,12 @@ export function addPositions(a: Position, b: Position): Position {
     row: a.row + b.row,
     col: a.col + b.col,
   }
+}
+
+export function calculateNextFallTickInterval(fallTickInterval: number, rowsCleared: number): number {
+  const percentageIncrease = (rowsCleared * Const.SPEED_INCREASE_PERCENT_PER_ROW / 100)
+
+  return fallTickInterval - fallTickInterval * percentageIncrease
 }
 
 export function calculateMiddleCol(cols: number, tetrominoCols: number): number {
@@ -152,7 +160,9 @@ function createInitialState(): State {
     initialBoard,
     initialTetromino,
     initialTetrominoPosition,
-    initialProjectionPosition
+    initialProjectionPosition,
+    Const.INITIAL_FALL_TICK_INTERVAL,
+    0
   )
 }
 
@@ -164,7 +174,21 @@ window.addEventListener("load", () => {
   dom.createBoardCells().forEach($cell => $board.appendChild($cell))
   console.log(`Initialized HTML board (${Const.BOARD_COLS}x${Const.BOARD_ROWS})`)
 
+  // Setup effects, animations, and audio.
+  effects.playInitializationEffectSequence()
+
   let state = createInitialState()
+
+  // Initial render.
+  dom.render(state)
+  console.log("Initial render")
+
+  const createFallTickInterval = (interval: number) => setInterval(() => {
+    state = gameEvents.onFallTick(state)
+    dom.render(state)
+  }, interval)
+
+  let fallTickIntervalHandle = createFallTickInterval(state.fallTickInterval)
 
   window.addEventListener("keydown", event => {
     let nextState = null
@@ -178,21 +202,15 @@ window.addEventListener("load", () => {
     }
 
     if (nextState !== null) {
+      // FIXME: What happens if there was some time in between lost? Ie. when clearing and re-assigning it, it would technically not be precise, and not respect previous interval time left on the previous fall tick interval?
+      // Reset the fall tick interval if it changed between states.
+      if (nextState.fallTickInterval !== state.fallTickInterval) {
+        clearInterval(fallTickIntervalHandle)
+        fallTickIntervalHandle = createFallTickInterval(nextState.fallTickInterval)
+      }
+
       state = nextState
       dom.render(state)
     }
   })
-
-  // Setup effects, animations, and audio.
-  effects.playInitializationEffectSequence()
-
-  // Initial render.
-  dom.render(state)
-  console.log("Initial render")
-
-  // Start game loop.
-  setInterval(() => {
-    state = gameEvents.onFallTick(state)
-    dom.render(state)
-  }, Const.TICK_INTERVAL)
 })

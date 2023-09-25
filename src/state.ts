@@ -9,6 +9,8 @@ export type StateOptions = {
   readonly tetromino: Matrix
   readonly tetrominoPosition: Position
   readonly projectionPosition: Position
+  readonly fallTickInterval: number
+  readonly score: number
 }
 
 export enum PlacementPosition {
@@ -21,7 +23,9 @@ export class State {
     readonly board: Matrix,
     readonly tetromino: Matrix,
     readonly tetrominoPosition: Position,
-    readonly projectionPosition: Position
+    readonly projectionPosition: Position,
+    readonly fallTickInterval: number,
+    readonly score: number
   ) {
     //
   }
@@ -37,7 +41,9 @@ export class State {
       changes.board || this.board.clone(),
       changes.tetromino || this.tetromino.clone(),
       changes.tetrominoPosition || {...this.tetrominoPosition},
-      changes.projectionPosition || {...this.projectionPosition}
+      changes.projectionPosition || {...this.projectionPosition},
+      changes.fallTickInterval || this.fallTickInterval,
+      changes.score || this.score
     )
   }
 
