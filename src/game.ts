@@ -13,6 +13,7 @@ export const Const = {
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
   TICK_INTERVAL: 200,
+  IS_DEBUG_MODE: true
 }
 
 export type Position = {

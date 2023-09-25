@@ -9,7 +9,11 @@ export function onPlayerHorizontalShiftInput(state: State, isLeft: boolean): Sta
   const isValidMove = game.couldMove(delta, state.board, state.tetromino, state.tetrominoPosition)
 
   if (isValidMove)
-    return state.clearTetromino().addTetrominoPositionDelta(delta)
+    return state
+      .clearTetrominoAndProjection()
+      .addTetrominoPositionDelta(delta)
+      .updateProjection()
+      .placeTetromino(PlacementPosition.InPlace)
 
   const disallowedAnimation: dom.Animation = isLeft
     ? dom.Animation.LimitedShockLeft
@@ -24,9 +28,10 @@ export function onPlayerHorizontalShiftInput(state: State, isLeft: boolean): Sta
 
 export function onPlayerPlacementInput(state: State): State | null {
   const nextState = state
-    .clearTetromino()
+    .clearTetrominoAndProjection()
     .placeTetromino(PlacementPosition.IntoProjection)
     .refreshTetromino()
+    .updateProjection()
 
   return gameEvents.onTetrominoPlacement(
     nextState,
@@ -46,11 +51,12 @@ export function onPlayerRotateInput(state: State): State | null {
   )
 
   // Prevent the tetromino from rotating if it would collide with the walls or floor.
-  if (collisionCheckResult !== game.CollisionCheckResult.NoCollision) {
-    console.log("Denied rotation", collisionCheckResult)
-
+  if (collisionCheckResult !== game.CollisionCheckResult.NoCollision)
     return null
-  }
 
-  return state.clearTetromino().update({tetromino: rotatedTetromino})
+  return state
+    .clearTetrominoAndProjection()
+    .modify({tetromino: rotatedTetromino})
+    .updateProjection()
+    .placeTetromino(PlacementPosition.InPlace)
 }

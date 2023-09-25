@@ -26,7 +26,7 @@ export class State {
     //
   }
 
-  private modify(changes: Partial<StateOptions>): State {
+  modify(changes: Partial<StateOptions>): State {
     if (changes.tetromino !== undefined)
       changes.tetromino.iter((_position, state) => util.assert(
         state !== CellState.Projection,
@@ -47,10 +47,9 @@ export class State {
       : this.projectionPosition
 
     const tetromino = this.tetromino.clone()
-    const nextState = this.refreshTetromino()
 
-    return nextState.modify({
-      board: nextState.board.insert(tetromino, position)
+    return this.modify({
+      board: this.board.insert(tetromino, position)
     })
   }
 
@@ -62,13 +61,13 @@ export class State {
       col: game.calculateMiddleCol(this.board.cols, newTetromino.cols)
     }
 
-    return this.update({
+    return this.modify({
       tetromino: newTetromino,
       tetrominoPosition: newTetrominoEntryPoint
     })
   }
 
-  clearTetromino(): State {
+  clearTetrominoAndProjection(): State {
     return this.modify({
       board: this.board
         .clearMask(this.tetromino, this.tetrominoPosition)
@@ -76,32 +75,26 @@ export class State {
     })
   }
 
-  update(changes: Partial<StateOptions> = {}): State {
-    const newState = this.modify(changes)
-
+  updateProjection(): State {
     const nextProjectionPosition: Position = {
-      row: game.projectRow(newState.board, newState.tetromino, newState.tetrominoPosition),
-      col: newState.tetrominoPosition.col
+      row: game.projectRow(this.board, this.tetromino, this.tetrominoPosition),
+      col: this.tetrominoPosition.col
     }
 
-    const projectionTetromino = game.createProjectionTetromino(newState.tetromino)
+    const projectionTetromino = game.createProjectionTetromino(this.tetromino)
 
-    const nextBoard = newState.board
+    const nextBoard = this.board
       // Insert new projection into the new board.
       .insert(projectionTetromino, nextProjectionPosition)
-      // Insert new tetromino into the new board.
-      .insert(newState.tetromino, newState.tetrominoPosition)
 
-    return new State(
-      nextBoard,
-      newState.tetromino,
-      newState.tetrominoPosition,
-      nextProjectionPosition
-    )
+    return this.modify({
+      board: nextBoard,
+      projectionPosition: nextProjectionPosition
+    })
   }
 
   addTetrominoPositionDelta(delta: Position): State {
-    return this.update({
+    return this.modify({
       tetrominoPosition: {
         row: this.tetrominoPosition.row + delta.row,
         col: this.tetrominoPosition.col + delta.col

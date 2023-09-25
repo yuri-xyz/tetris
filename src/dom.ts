@@ -18,6 +18,10 @@ export function createBoardCells() {
       $cell.dataset.row = row.toString()
       $cell.dataset.col = col.toString()
       $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = CellState.Empty
+
+      if (Const.IS_DEBUG_MODE)
+        $cell.innerText = `${row}:${col}`
+
       $cells.push($cell)
     }
 
