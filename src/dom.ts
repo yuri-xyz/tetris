@@ -1,10 +1,18 @@
 import {CellState, Const, Position} from "./game"
 import {State} from "./state"
+import * as util from "./util"
 
 export enum Animation {
   AbsorbBottomShock = "absorb-bottom-shock",
   LimitedShockLeft = "limited-shock-left",
   LimitedShockRight = "limited-shock-right",
+  ScoreAlert = "score-alert",
+  StatHighlight = "stat-highlight",
+  RowClear = "row-clear"
+}
+
+export enum Stat {
+  Score = "score"
 }
 
 export function createBoardCells() {
@@ -19,7 +27,7 @@ export function createBoardCells() {
       $cell.dataset.col = col.toString()
       $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = CellState.Empty
 
-      if (Const.IS_DEBUG_MODE)
+      if (Const.IS_DEBUG_MODE && Const.IS_DEBUG_COORDS_VISIBLE)
         $cell.innerText = `${row}:${col}`
 
       $cells.push($cell)
@@ -53,27 +61,42 @@ function getCellElement(position: Position): HTMLElement {
 export function playAnimation(
   $element: HTMLElement,
   animation: Animation,
-  duration: number
+  duration: number,
+  delay: number = 0
 ): Promise<void> {
   return new Promise(resolve => {
     // Do not restart the same animation if it's already playing.
     if ($element.style.animationName === animation)
       return
 
-    $element.style.animationTimingFunction = "ease-in-out"
+    $element.style.animationTimingFunction = "ease"
     $element.style.animationDuration = `${duration}ms`
     $element.style.animationName = animation
+    $element.style.animationDelay = `${delay}ms`
     $element.classList.add(animation)
 
     setTimeout(() => {
       $element.style.animationName = ""
       resolve()
-    }, duration)
+    }, delay + duration)
   })
 }
 
-export function render(state: State) {
+export function getStatElement(stat: Stat): HTMLElement {
+  const element = document.getElementById(stat)!
+
+  util.assert(element !== null, "stat elements should always exist")
+
+  return element
+}
+
+export function updateStat(stat: Stat, value: string): void {
+  getStatElement(stat).innerText = value
+}
+
+export function render(state: State): void {
   // REVISE: Render step should be using `requestAnimationFrame`, while the game loop (ticks) should be using `setInterval`. By doing this, inputs from the player will be immediately reflected in the next FRAME, and not in the next TICK. This will make the game feel more responsive. Or perhaps, simply re-render immediately after an input is received.
 
+  updateStat(Stat.Score, state.score.toString())
   state.board.iter((position, state) => updateCellElement(position, state))
 }

@@ -1,6 +1,7 @@
 import * as util from "./util"
 import * as dom from "./dom"
 import {Const} from "./game"
+import VanillaTilt from "vanilla-tilt"
 
 export type Vector2 = {x: number, y: number}
 
@@ -30,12 +31,13 @@ type ParticleSpawnOptions = {
   velocityFactor: number
   opacityMin: number
   opacityMax: number
-  directionDegrees?: number
+  directionDegrees?: number,
+  colors: string[]
 }
 
 const particles: Particle[] = []
 
-export function initializeParticles() {
+export function initializeParticles(): void {
   let lastTime = 0
 
   const update = (time: DOMHighResTimeStamp) => {
@@ -69,7 +71,7 @@ export function initializeParticles() {
   requestAnimationFrame(update)
 }
 
-export function spawnParticles(options: ParticleSpawnOptions) {
+export function spawnParticles(options: ParticleSpawnOptions): void {
   const randomVelocityComponent = () => Math.random() * options.velocityFactor * util.randomSign()
   const count = util.randomInt(options.countMin, options.countMax)
 
@@ -86,10 +88,13 @@ export function spawnParticles(options: ParticleSpawnOptions) {
     const $element = document.createElement("div")
     const radius = util.randomInt(options.radiusMin, options.radiusMax)
     const blurPercentage = (radius - options.radiusMin) / (options.radiusMax - options.radiusMin)
+    const color = util.chooseRandom(options.colors)
 
     $element.style.width = `${radius}px`
     $element.style.height = `${radius}px`
     $element.style.filter = `blur(${options.blurMin + blurPercentage * (options.blurMax - options.blurMin)}px)`
+    $element.style.backgroundColor = color
+    $element.style.boxShadow = `0 0 10px ${color}`
 
     for (const className of options.classNames)
       $element.classList.add(className)
@@ -107,7 +112,7 @@ export function spawnParticles(options: ParticleSpawnOptions) {
       position: {x, y},
       velocity,
       radius: 0,
-      color: "#fff",
+      color,
       maxLifetime: lifetime,
       lifetime,
       $element,
@@ -119,9 +124,16 @@ export function spawnParticles(options: ParticleSpawnOptions) {
   }
 }
 
-export function playInitializationEffectSequence() {
-  util.playThemeAudio()
+export function playInitializationEffectSequence(): void {
+  if (!Const.IS_DEBUG_MODE || Const.DEBUG_PLAY_MUSIC)
+    util.playThemeAudio()
+
   initializeParticles()
+
+  VanillaTilt.init(document.querySelector<HTMLElement>(".grid")!, {
+    max: 5,
+    speed: 200
+  })
 
   // Spawn background particles.
   spawnParticles({
@@ -138,11 +150,12 @@ export function playInitializationEffectSequence() {
     velocityFactor: 0.02,
     opacityMin: 0,
     opacityMax: 0.1,
+    colors: ["#fff"]
   })
 }
 
-export function playPlacementEffectSequence() {
-  util.playAudio(util.AudioAsset.Floor)
+export function playPlacementEffectSequence(): void {
+  util.playSound(util.Sound.Floor)
   dom.playAnimation(document.querySelector(Const.BOARD_SELECTOR)!, dom.Animation.AbsorbBottomShock, 400)
 
   spawnParticles({
@@ -158,5 +171,49 @@ export function playPlacementEffectSequence() {
     velocityFactor: 0.2,
     opacityMin: 0,
     opacityMax: 0.9,
+    colors: ["#fff"]
   })
+}
+
+export function playTetrisScoreEffectSequence(): void {
+  util.playSound(util.Sound.Tetris)
+
+  // REVISE: Don't use hard-coded selector.
+  dom.playAnimation(document.querySelector(".score-alert")!, dom.Animation.ScoreAlert, 3000)
+
+  spawnParticles({
+    countMin: 40,
+    countMax: 50,
+    lifetimeMin: 1000,
+    lifetimeMax: 4000,
+    radiusMin: 10,
+    radiusMax: 15,
+    blurMin: 0,
+    blurMax: 2,
+    // REVISE: Avoid hard-coding class names.
+    classNames: ["particle", "tetris"],
+    velocityFactor: 0.5,
+    opacityMin: 0.2,
+    opacityMax: 0.5,
+    // REVISE: Avoid hard-coding colors.
+    colors: ["#6666ff", "#0099ff", "#00ff00", "#ff3399"]
+  })
+}
+
+export function playRowClearEffectSequence(rows: number[]): void {
+  const getRowCells = (row: number): HTMLElement[] =>
+    Array.from(document.querySelectorAll<HTMLElement>(`[data-row='${row}']`))
+
+  const DELAY_BETWEEN_ROWS = 15
+
+  for (const [rowIndex, row] of rows.entries()) {
+    const $cells = getRowCells(row)
+
+    for (const [cellIndex, $cell] of $cells.entries()) {
+      // This causes the animation to play from top left to bottom right.
+      const delay = ((rowIndex * rows.length) + cellIndex) * DELAY_BETWEEN_ROWS
+
+      dom.playAnimation($cell, dom.Animation.RowClear, 100, delay)
+    }
+  }
 }

@@ -2,6 +2,7 @@ import {PlacementPosition, State} from "./state"
 import * as util from "./util"
 import * as game from "./game"
 import * as effects from "./effects"
+import * as dom from "./dom"
 
 export function onFallTick(state: State): State {
   // On every tick, shift the tetromino down by one row.
@@ -64,10 +65,10 @@ export function onTetrominoPlacement(
   const adjustedSpan = placementRowSpan - 1
 
   const endRow = placementRowStart + adjustedSpan
-  const nextState = stateAfterPlacement.clone()
+  const clonedState = stateAfterPlacement.clone()
 
   util.assert(
-    endRow < nextState.board.rows,
+    endRow < clonedState.board.rows,
     "end row should not be out of bounds (it's more than the board's rows)"
   )
 
@@ -76,7 +77,7 @@ export function onTetrominoPlacement(
   const rowsToClear: number[] = []
 
   for (let row = placementRowStart; row <= endRow; row++) {
-    const isRowFilled = nextState.board.unwrap()[row]
+    const isRowFilled = clonedState.board.unwrap()[row]
       .every(cell => cell !== game.CellState.Empty && cell !== game.CellState.Projection)
 
     // Do not clear the row immediately, as this would create
@@ -85,33 +86,55 @@ export function onTetrominoPlacement(
       rowsToClear.push(row)
   }
 
-  const scoreAcquired = game.Const.ROW_SCORE * rowsToClear.length
-
-  // Increment score when clearing rows.
-  const nextScore = rowsToClear.length > 0
-    ? stateAfterPlacement.score + scoreAcquired
-    : stateAfterPlacement.score
+  if (rowsToClear.length > 0)
+    effects.playRowClearEffectSequence(rowsToClear)
 
   const nextBoard = rowsToClear.reduce(
     (nextBoard, row) => nextBoard.clearRowAndCollapse(row),
-    nextState.board.clone()
+    clonedState.board.clone()
   )
+
+  const nextState = clonedState.modify({board: nextBoard})
+
+  return rowsToClear.length > 0
+    // If there were rows cleared, update the projection position,
+    // since it may be offset by the amount of rows cleared, causing
+    // 'ghost' parts of the projection to be visible.
+    ? onRowsCleared(rowsToClear.length, nextState.updateProjection())
+    : nextState
+}
+
+function onRowsCleared(amount: number, state: State): State {
+  util.assert(amount > 0, "at least one row should be cleared when calling this function")
+  util.assert(amount <= 4, "at most 4 rows should be cleared by any single move")
+
+  if (amount === 4)
+    effects.playTetrisScoreEffectSequence()
+  else
+    util.playSound(util.Sound.LineClear)
+
+  const scoreAcquired = game.Const.ROW_SCORE * amount
+
+  // Increment score when clearing rows.
+  const nextScore = state.score + scoreAcquired
 
   const nextFallTickInterval = game.calculateNextFallTickInterval(
-    stateAfterPlacement.fallTickInterval,
-    rowsToClear.length
+    state.fallTickInterval,
+    amount
   )
 
-  return nextState.modify({
-    board: nextBoard,
+  // REVISE: This isn't 'connected' to exactly when the DOM updates. Find a better way to do this.
+  dom.playAnimation(dom.getStatElement(dom.Stat.Score), dom.Animation.StatHighlight, 100)
+
+  return state.modify({
     score: nextScore,
     // Only update fall tick interval if there was at least
     // one row cleared.
-    fallTickInterval: rowsToClear.length > 0 ? nextFallTickInterval : undefined
+    fallTickInterval: amount > 0 ? nextFallTickInterval : undefined
   })
 }
 
-export function onTetrominoCollisionWithCeiling(state: State) {
+export function onTetrominoCollisionWithCeiling(state: State): void {
   alert(`Game over! Score: ${state.score}`)
   window.location.reload()
 }

@@ -12,10 +12,19 @@
 
 <body>
   <div class="background-cover"></div>
-  <div id="board"></div>
-  <div class="content">
-    <h1 class="title">Tetris</h1>
-    <div class="tetromino-cell"></div>
+  <div class="props">
+    <span class="score-alert">Tetris!</span>
+  </div>
+  <div class="grid">
+    <div class="stats">
+      <span class="stat-title">Score</span>
+      <span id="score" class="stat-value">0</span>
+    </div>
+    <div data-tilt data-tilt-glare data-tilt-max-glare="0.2" id="board"></div>
+    <div class="right"></div>
+    <div class="bottom">
+      <h1 class="title">Tetris</h1>
+    </div>
   </div>
 </body>
 

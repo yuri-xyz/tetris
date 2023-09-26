@@ -16,5 +16,8 @@
     "typescript": "^5.2.2",
     "vite": "^4.4.9",
     "vite-plugin-singlefile": "^0.13.5"
+  },
+  "dependencies": {
+    "vanilla-tilt": "^1.8.1"
   }
 }

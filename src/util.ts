@@ -1,8 +1,9 @@
 const audioCache = new Map<string, HTMLAudioElement>()
 
-export enum AudioAsset {
+export enum Sound {
   Floor = "floor.ogg",
-  Theme = "theme"
+  Tetris = "tetris.mp3",
+  LineClear = "line-clear.mp3"
 }
 
 export function assert(condition: boolean, reasoning: string): asserts condition {
@@ -26,7 +27,7 @@ export function chooseRandom<T>(choices: T[]): T {
   return choices[randomInt(0, choices.length)]
 }
 
-export function preloadAudios(audios: AudioAsset[]) {
+export function preloadAudios(audios: Sound[]) {
   audios.forEach(audio => {
     if (audioCache.has(audio))
       return
@@ -34,12 +35,18 @@ export function preloadAudios(audios: AudioAsset[]) {
     const audioElement = new Audio(`/assets/${audio}`)
 
     audioElement.volume = 0
-    audioElement.play().then(() => audioElement.pause())
+
+    audioElement.play().then(() => {
+      audioElement.pause()
+      audioElement.currentTime = 0
+      audioElement.volume = 1
+    })
+
     audioCache.set(audio, audioElement)
   })
 }
 
-export function playAudio(asset: AudioAsset, loop = false) {
+export function playSound(asset: Sound, loop = false) {
   if (!audioCache.has(asset)) {
     const audio = new Audio(`/assets/${asset}`)
 
@@ -57,6 +64,7 @@ export function playThemeAudio() {
   const themeAudio = new Audio("/assets/theme.mp3")
 
   themeAudio.loop = true
+  themeAudio.volume = 0.5
   themeAudio.pause()
 
   const resolveOnUserInteraction = () => {

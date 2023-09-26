@@ -11,6 +11,7 @@ export type StateOptions = {
   readonly projectionPosition: Position
   readonly fallTickInterval: number
   readonly score: number
+  readonly isPaused: boolean
 }
 
 export enum PlacementPosition {
@@ -25,7 +26,8 @@ export class State {
     readonly tetrominoPosition: Position,
     readonly projectionPosition: Position,
     readonly fallTickInterval: number,
-    readonly score: number
+    readonly score: number,
+    readonly isPaused: boolean
   ) {
     //
   }
@@ -43,7 +45,8 @@ export class State {
       changes.tetrominoPosition || {...this.tetrominoPosition},
       changes.projectionPosition || {...this.projectionPosition},
       changes.fallTickInterval || this.fallTickInterval,
-      changes.score || this.score
+      changes.score || this.score,
+      changes.isPaused || this.isPaused
     )
   }
 
@@ -60,7 +63,9 @@ export class State {
   }
 
   refreshTetromino(): State {
-    const newTetromino = Tetromino.random
+    const newTetromino = game.Const.IS_DEBUG_MODE && game.Const.DEBUG_ONLY_STRAIGHT_TETROMINOS
+      ? Tetromino.straight
+      : Tetromino.random
 
     const newTetrominoEntryPoint: Position = {
       row: 0,

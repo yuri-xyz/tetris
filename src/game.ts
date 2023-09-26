@@ -5,6 +5,7 @@ import {State} from "./state"
 import Tetromino from "./tetromino"
 import * as playerEvents from "./playerEvents"
 import * as gameEvents from "./gameEvents"
+import * as util from "./util"
 
 export const Const = {
   BOARD_SELECTOR: "#board",
@@ -12,10 +13,16 @@ export const Const = {
   BOARD_COLS: 10,
   BOARD_ROWS: 20,
   CELL_HTML_DATASET_STATE_KEY: "tag",
-  IS_DEBUG_MODE: false,
   INITIAL_FALL_TICK_INTERVAL: 700,
   ROW_SCORE: 100,
-  SPEED_INCREASE_PERCENT_PER_ROW: 5
+  SPEED_INCREASE_PERCENT_PER_ROW: 5,
+  MIN_FALL_INVERVAL: 250,
+  // Debugging.
+  IS_DEBUG_MODE: false,
+  IS_DEBUG_PAUSED: false,
+  IS_DEBUG_COORDS_VISIBLE: false,
+  DEBUG_ONLY_STRAIGHT_TETROMINOS: true,
+  DEBUG_PLAY_MUSIC: false
 }
 
 export type Position = {
@@ -60,7 +67,7 @@ export function addPositions(a: Position, b: Position): Position {
 export function calculateNextFallTickInterval(fallTickInterval: number, rowsCleared: number): number {
   const percentageIncrease = (rowsCleared * Const.SPEED_INCREASE_PERCENT_PER_ROW / 100)
 
-  return fallTickInterval - fallTickInterval * percentageIncrease
+  return Math.max(Const.MIN_FALL_INVERVAL, fallTickInterval - fallTickInterval * percentageIncrease)
 }
 
 export function calculateMiddleCol(cols: number, tetrominoCols: number): number {
@@ -162,7 +169,8 @@ function createInitialState(): State {
     initialTetrominoPosition,
     initialProjectionPosition,
     Const.INITIAL_FALL_TICK_INTERVAL,
-    0
+    0,
+    Const.IS_DEBUG_MODE && Const.IS_DEBUG_PAUSED
   )
 }
 
@@ -176,6 +184,7 @@ window.addEventListener("load", () => {
 
   // Setup effects, animations, and audio.
   effects.playInitializationEffectSequence()
+  util.preloadAudios(Object.values(util.Sound))
 
   let state = createInitialState()
 
@@ -188,7 +197,9 @@ window.addEventListener("load", () => {
     dom.render(state)
   }, interval)
 
-  let fallTickIntervalHandle = createFallTickInterval(state.fallTickInterval)
+  let fallTickIntervalHandle = state.isPaused
+    ? -1
+    : createFallTickInterval(state.fallTickInterval)
 
   window.addEventListener("keydown", event => {
     let nextState = null
@@ -201,7 +212,7 @@ window.addEventListener("load", () => {
       case " ": nextState = state.choose(playerEvents.onPlayerPlacementInput(state)); break
     }
 
-    if (nextState !== null) {
+    if (!state.isPaused && nextState !== null) {
       // FIXME: What happens if there was some time in between lost? Ie. when clearing and re-assigning it, it would technically not be precise, and not respect previous interval time left on the previous fall tick interval?
       // Reset the fall tick interval if it changed between states.
       if (nextState.fallTickInterval !== state.fallTickInterval) {
