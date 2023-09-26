@@ -1,8 +1,8 @@
 import {defineConfig} from "vite"
-// import {viteSingleFile} from "vite-plugin-singlefile"
+import {viteSingleFile} from "vite-plugin-singlefile"
 
 export default defineConfig({
-  // plugins: [viteSingleFile()],
+  plugins: [viteSingleFile()],
   esbuild: {
     jsxFactory: "h",
     jsxFragment: "Fragment",
