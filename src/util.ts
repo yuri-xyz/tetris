@@ -32,7 +32,7 @@ export function preloadAudios(audios: Sound[]) {
     if (audioCache.has(audio))
       return
 
-    const audioElement = new Audio(`/assets/${audio}`)
+    const audioElement = new Audio(`/${audio}`)
 
     audioElement.volume = 0
 
@@ -48,7 +48,7 @@ export function preloadAudios(audios: Sound[]) {
 
 export function playSound(asset: Sound, loop = false) {
   if (!audioCache.has(asset)) {
-    const audio = new Audio(`/assets/${asset}`)
+    const audio = new Audio(`/${asset}`)
 
     audioCache.set(asset, audio)
   }
@@ -61,7 +61,7 @@ export function playSound(asset: Sound, loop = false) {
 }
 
 export function playThemeAudio() {
-  const themeAudio = new Audio("/assets/theme.mp3")
+  const themeAudio = new Audio("/theme.mp3")
 
   themeAudio.loop = true
   themeAudio.volume = 0.5

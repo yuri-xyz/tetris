@@ -141,7 +141,7 @@ export function playInitializationEffectSequence(): void {
     countMax: 40,
     lifetimeMin: 5000,
     // TODO: Background particles need to life forever, or new ones need to be spawned every so often.
-    lifetimeMax: 50_000,
+    lifetimeMax: 600_000_000,
     radiusMin: 5,
     radiusMax: 30,
     blurMin: 1,
