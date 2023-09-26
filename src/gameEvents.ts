@@ -113,7 +113,16 @@ function onRowsCleared(amount: number, state: State): State {
   else
     util.playSound(util.Sound.LineClear)
 
-  const scoreAcquired = game.Const.ROW_SCORE * amount
+  let scoreAcquired: number
+
+  switch (amount) {
+    case 1: scoreAcquired = game.Const.ROW_SCORE_SINGLE; break
+    case 2: scoreAcquired = game.Const.ROW_SCORE_DOUBLE; break
+    case 3: scoreAcquired = game.Const.ROW_SCORE_TRIPLE; break
+    case 4: scoreAcquired = game.Const.ROW_SCORE_TETRIS; break
+    default:
+      throw new Error("unexpected amount of rows cleared, should be between 1 and 4")
+  }
 
   // Increment score when clearing rows.
   const nextScore = state.score + scoreAcquired
