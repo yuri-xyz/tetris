@@ -12,6 +12,7 @@ export type StateOptions = {
   readonly fallTickInterval: number
   readonly score: number
   readonly isPaused: boolean
+  readonly combo: number
 }
 
 export enum PlacementPosition {
@@ -20,16 +21,24 @@ export enum PlacementPosition {
 }
 
 export class State {
-  constructor(
-    readonly board: Matrix,
-    readonly tetromino: Matrix,
-    readonly tetrominoPosition: Position,
-    readonly projectionPosition: Position,
-    readonly fallTickInterval: number,
-    readonly score: number,
-    readonly isPaused: boolean
-  ) {
-    //
+  readonly board: Matrix
+  readonly tetromino: Matrix
+  readonly tetrominoPosition: Position
+  readonly projectionPosition: Position
+  readonly fallTickInterval: number
+  readonly score: number
+  readonly isPaused: boolean
+  readonly combo: number
+
+  constructor(options: StateOptions) {
+    this.board = options.board
+    this.tetromino = options.tetromino
+    this.tetrominoPosition = options.tetrominoPosition
+    this.projectionPosition = options.projectionPosition
+    this.fallTickInterval = options.fallTickInterval
+    this.score = options.score
+    this.isPaused = options.isPaused
+    this.combo = options.combo
   }
 
   modify(changes: Partial<StateOptions>): State {
@@ -39,15 +48,16 @@ export class State {
         "state tetromino should not contain projection cells"
       ))
 
-    return new State(
-      changes.board || this.board.clone(),
-      changes.tetromino || this.tetromino.clone(),
-      changes.tetrominoPosition || {...this.tetrominoPosition},
-      changes.projectionPosition || {...this.projectionPosition},
-      changes.fallTickInterval || this.fallTickInterval,
-      changes.score || this.score,
-      changes.isPaused || this.isPaused
-    )
+    return new State({
+      board: changes.board || this.board.clone(),
+      tetromino: changes.tetromino || this.tetromino.clone(),
+      tetrominoPosition: changes.tetrominoPosition || {...this.tetrominoPosition},
+      projectionPosition: changes.projectionPosition || {...this.projectionPosition},
+      fallTickInterval: changes.fallTickInterval || this.fallTickInterval,
+      score: changes.score || this.score,
+      isPaused: changes.isPaused || this.isPaused,
+      combo: changes.combo || this.combo
+    })
   }
 
   placeTetromino(placementPosition: PlacementPosition): State {

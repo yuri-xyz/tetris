@@ -29,8 +29,8 @@ export const Const = {
 }
 
 export type Position = {
-  row: number
-  col: number
+  readonly row: number
+  readonly col: number
 }
 
 export enum CellState {
@@ -166,15 +166,16 @@ function createInitialState(): State {
     .insert(createProjectionTetromino(initialTetromino), initialProjectionPosition)
     .insert(initialTetromino, initialTetrominoPosition)
 
-  return new State(
-    initialBoard,
-    initialTetromino,
-    initialTetrominoPosition,
-    initialProjectionPosition,
-    Const.INITIAL_FALL_TICK_INTERVAL,
-    0,
-    Const.IS_DEBUG_MODE && Const.IS_DEBUG_PAUSED
-  )
+  return new State({
+    board: initialBoard,
+    tetromino: initialTetromino,
+    tetrominoPosition: initialTetrominoPosition,
+    projectionPosition: initialProjectionPosition,
+    fallTickInterval: Const.INITIAL_FALL_TICK_INTERVAL,
+    score: 0,
+    isPaused: Const.IS_DEBUG_MODE && Const.IS_DEBUG_PAUSED,
+    combo: 0
+  })
 }
 
 window.addEventListener("load", () => {
