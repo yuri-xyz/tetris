@@ -136,6 +136,8 @@ export function wouldCollide(
   tetrominoPosition: Position,
   delta: Position = {row: 0, col: 0}
 ): CollisionCheckResult {
+  // Esta función ahora delega las comprobaciones de colisión específicas
+  // a funciones auxiliares para mayor claridad.
   const virtualBoard = board.clearMask(tetromino, tetrominoPosition);
   const simulatedPosition = {
     row: tetrominoPosition.row + delta.row,
