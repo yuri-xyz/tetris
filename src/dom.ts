@@ -1,6 +1,6 @@
-import {CellState, Const, Position} from "./game"
-import {State} from "./state"
-import * as util from "./util"
+import {CellState, Const, Position} from "./game";
+import {State} from "./state";
+import * as util from "./util";
 
 export enum Animation {
   AbsorbBottomShock = "absorb-bottom-shock",
@@ -8,54 +8,55 @@ export enum Animation {
   LimitedShockRight = "limited-shock-right",
   ScoreAlert = "score-alert",
   StatHighlight = "stat-highlight",
-  RowClear = "row-clear"
+  RowClear = "row-clear",
 }
 
 export enum Stat {
-  Score = "score"
+  Score = "score",
 }
 
 export function createBoardCells() {
-  const $cells = []
+  const $cells = [];
 
   for (let row = 0; row < Const.BOARD_ROWS; row++)
     for (let col = 0; col < Const.BOARD_COLS; col++) {
-      const $cell = document.createElement("div")
+      const $cell = document.createElement("div");
 
-      $cell.classList.add(Const.CELL_CLASS)
-      $cell.dataset.row = row.toString()
-      $cell.dataset.col = col.toString()
-      $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = CellState.Empty
+      $cell.classList.add(Const.CELL_CLASS);
+      $cell.dataset.row = row.toString();
+      $cell.dataset.col = col.toString();
+      $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = CellState.Empty;
 
       if (Const.IS_DEBUG_MODE && Const.IS_DEBUG_COORDS_VISIBLE)
-        $cell.innerText = `${row}:${col}`
+        $cell.innerText = `\${row}:\${col}`;
 
-      $cells.push($cell)
+      $cells.push($cell);
     }
 
-  return $cells
+  return $cells;
 }
 
 export function updateCellElement(
   position: Position,
-  state: CellState,
+  state: CellState
 ) {
-  const $cell = getCellElement(position)
+  const $cell = getCellElement(position);
 
-  // $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state
-  $cell.classList.remove(...Object.values(CellState))
+  // $cell.dataset[Const.CELL_HTML_DATASET_STATE_KEY] = state;
+  $cell.classList.remove(...Object.values(CellState));
 
-  if (state !== CellState.Empty)
-    $cell.classList.add(state)
+  if (state !== CellState.Empty) $cell.classList.add(state);
 }
 
 function getCellElement(position: Position): HTMLElement {
-  const $cell = document.querySelector<HTMLElement>(`[data-row="${position.row}"][data-col="${position.col}"]`)
+  const $cell = document.querySelector<HTMLElement>(
+    `[data-row="\${position.row}"][data-col="\${position.col}"]`
+  );
 
   if ($cell === null)
-    throw new Error(`cell at (${position.row}, ${position.col}) not found`)
+    throw new Error(`cell at (\${position.row}, \${position.col}) not found`);
 
-  return $cell
+  return $cell;
 }
 
 export function playAnimation(
@@ -64,39 +65,40 @@ export function playAnimation(
   duration: number,
   delay: number = 0
 ): Promise<void> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     // Do not restart the same animation if it's already playing.
-    if ($element.style.animationName === animation)
-      return
+    if ($element.style.animationName === animation) return;
 
-    $element.style.animationTimingFunction = "ease"
-    $element.style.animationDuration = `${duration}ms`
-    $element.style.animationName = animation
-    $element.style.animationDelay = `${delay}ms`
-    $element.classList.add(animation)
+    $element.style.animationTimingFunction = "ease";
+    $element.style.animationDuration = `\${duration}ms`;
+    $element.style.animationName = animation;
+    $element.style.animationDelay = `\${delay}ms`;
+    $element.classList.add(animation);
 
     setTimeout(() => {
-      $element.style.animationName = ""
-      resolve()
-    }, delay + duration)
-  })
+      $element.style.animationName = "";
+      resolve();
+    }, delay + duration);
+  });
 }
 
 export function getStatElement(stat: Stat): HTMLElement {
-  const element = document.getElementById(stat)!
+  const element = document.getElementById(stat)!;
 
-  util.assert(element !== null, "stat elements should always exist")
+  util.assert(element !== null, "stat elements should always exist");
 
-  return element
+  return element;
 }
 
 export function updateStat(stat: Stat, value: string): void {
-  getStatElement(stat).innerText = value
+  getStatElement(stat).innerText = value;
 }
 
 export function render(state: State): void {
   // REVISE: Render step should be using `requestAnimationFrame`, while the game loop (ticks) should be using `setInterval`. By doing this, inputs from the player will be immediately reflected in the next FRAME, and not in the next TICK. This will make the game feel more responsive. Or perhaps, simply re-render immediately after an input is received.
 
-  updateStat(Stat.Score, state.score.toString())
-  state.board.iter((position, state) => updateCellElement(position, state))
+  updateStat(Stat.Score, state.score.toString());
+  state.board.iter((position, state) =>
+    updateCellElement(position, state)
+  );
 }
