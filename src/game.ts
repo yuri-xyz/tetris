@@ -1,11 +1,11 @@
-import * as dom from "./dom"
-import * as effects from "./effects"
-import Matrix from "./matrix"
-import {State} from "./state"
-import Tetromino from "./tetromino"
-import * as playerEvents from "./playerEvents"
-import * as gameEvents from "./gameEvents"
-import * as util from "./util"
+import * as dom from "./dom";
+import * as effects from "./effects";
+import Matrix from "./matrix";
+import {State} from "./state";
+import Tetromino from "./tetromino";
+import * as playerEvents from "./playerEvents";
+import * as gameEvents from "./gameEvents";
+import * as util from "./util";
 
 export const Const = {
   BOARD_SELECTOR: "#board",
@@ -25,13 +25,13 @@ export const Const = {
   IS_DEBUG_PAUSED: false,
   IS_DEBUG_COORDS_VISIBLE: false,
   DEBUG_ONLY_STRAIGHT_TETROMINOS: true,
-  DEBUG_PLAY_MUSIC: false
-}
+  DEBUG_PLAY_MUSIC: false,
+};
 
 export type Position = {
-  readonly row: number
-  readonly col: number
-}
+  readonly row: number;
+  readonly col: number;
+};
 
 export enum CellState {
   Empty = "empty",
@@ -53,31 +53,81 @@ export enum CollisionCheckResult {
 
 export function createProjectionTetromino(tetromino: Matrix): Matrix {
   return tetromino.transform((_position, state) => {
-    if (state === CellState.Empty)
-      return state
+    if (state === CellState.Empty) return state;
 
-    return CellState.Projection
-  })
+    return CellState.Projection;
+  });
 }
 
 export function addPositions(a: Position, b: Position): Position {
   return {
     row: a.row + b.row,
     col: a.col + b.col,
-  }
+  };
 }
 
-export function calculateNextFallTickInterval(fallTickInterval: number, rowsCleared: number): number {
-  const percentageIncrease = (rowsCleared * Const.SPEED_INCREASE_PERCENT_PER_ROW / 100)
+export function calculateNextFallTickInterval(
+  fallTickInterval: number,
+  rowsCleared: number
+): number {
+  const percentageIncrease =
+    (rowsCleared * Const.SPEED_INCREASE_PERCENT_PER_ROW) / 100;
 
-  return Math.max(Const.MIN_FALL_INVERVAL, fallTickInterval - fallTickInterval * percentageIncrease)
+  return Math.max(
+    Const.MIN_FALL_INVERVAL,
+    fallTickInterval - fallTickInterval * percentageIncrease
+  );
 }
 
-export function calculateMiddleCol(cols: number, tetrominoCols: number): number {
-  const middleCol = Math.floor(cols / 2)
-  const tetrominoMiddleCol = Math.floor(tetrominoCols / 2)
+export function calculateMiddleCol(
+  cols: number,
+  tetrominoCols: number
+): number {
+  const middleCol = Math.floor(cols / 2);
+  const tetrominoMiddleCol = Math.floor(tetrominoCols / 2);
 
-  return middleCol - tetrominoMiddleCol
+  return middleCol - tetrominoMiddleCol;
+}
+
+function wouldCollideWithWalls(
+  simulatedPosition: Position,
+  tetrominoCols: number,
+  boardCols: number
+): boolean {
+  return (
+    simulatedPosition.col < 0 ||
+    simulatedPosition.col + tetrominoCols > boardCols
+  );
+}
+
+function wouldCollideWithFloor(
+  simulatedPosition: Position,
+  tetrominoRows: number,
+  boardRows: number
+): boolean {
+  return simulatedPosition.row + tetrominoRows > boardRows;
+}
+
+function wouldCollideWithOtherTetromino(
+  virtualBoard: Matrix,
+  tetromino: Matrix,
+  simulatedPosition: Position
+): boolean {
+  let collided = false;
+  tetromino.iter(({row, col}, state) => {
+    if (state === CellState.Empty || state === CellState.Projection) {
+      return;
+    }
+
+    const boardRow = row + simulatedPosition.row;
+    const boardCol = col + simulatedPosition.col;
+    const boardCell = virtualBoard.unwrap()[boardRow][boardCol];
+
+    if (boardCell !== CellState.Empty && boardCell !== CellState.Projection) {
+      collided = true;
+    }
+  });
+  return collided;
 }
 
 export function wouldCollide(
@@ -86,45 +136,47 @@ export function wouldCollide(
   tetrominoPosition: Position,
   delta: Position = {row: 0, col: 0}
 ): CollisionCheckResult {
-  // REVISE: Break this function down into smaller functions (e.g. `wouldCollideWithWalls`, `wouldCollideWithFloor`, `wouldCollideWithOtherTetromino`).
-
-  // Remove the tetromino from the board, to prevent it from
-  // colliding with itself.
-  const virtualBoard = board.clearMask(tetromino, tetrominoPosition)
-
+  // Esta función ahora delega las comprobaciones de colisión específicas
+  // a funciones auxiliares para mayor claridad.
+  const virtualBoard = board.clearMask(tetromino, tetrominoPosition);
   const simulatedPosition = {
     row: tetrominoPosition.row + delta.row,
     col: tetrominoPosition.col + delta.col,
+  };
+
+  if (
+    wouldCollideWithWalls(
+      simulatedPosition,
+      tetromino.cols,
+      virtualBoard.cols
+    )
+  ) {
+    return CollisionCheckResult.WallsOrFloorOrOtherTetromino;
   }
 
-  // Check left and right columns.
-  if (simulatedPosition.col < 0 || simulatedPosition.col + tetromino.cols > virtualBoard.cols)
-    return CollisionCheckResult.WallsOrFloorOrOtherTetromino
-  // Check bottom of the board.
-  else if (simulatedPosition.row + tetromino.rows > virtualBoard.rows)
-    return CollisionCheckResult.WallsOrFloorOrOtherTetromino
+  if (
+    wouldCollideWithFloor(
+      simulatedPosition,
+      tetromino.rows,
+      virtualBoard.rows
+    )
+  ) {
+    return CollisionCheckResult.WallsOrFloorOrOtherTetromino;
+  }
 
-  let collidedAgainstCell = false
+  const collidedWithCell = wouldCollideWithOtherTetromino(
+    virtualBoard,
+    tetromino,
+    simulatedPosition
+  );
 
-  tetromino.iter(({row, col}, state) => {
-    // Ignore empty or projection cells; they don't collide with anything.
-    if (state === CellState.Empty || state === CellState.Projection)
-      return
+  if (tetrominoPosition.row === 0 && collidedWithCell) {
+    return CollisionCheckResult.Ceiling;
+  }
 
-    const boardRow = row + simulatedPosition.row
-    const boardCol = col + simulatedPosition.col
-    const boardCell = virtualBoard.unwrap()[boardRow][boardCol]
-
-    if (boardCell !== CellState.Empty && boardCell !== CellState.Projection)
-      collidedAgainstCell = true
-  })
-
-  if (tetrominoPosition.row === 0 && collidedAgainstCell)
-    return CollisionCheckResult.Ceiling
-
-  return collidedAgainstCell
+  return collidedWithCell
     ? CollisionCheckResult.WallsOrFloorOrOtherTetromino
-    : CollisionCheckResult.NoCollision
+    : CollisionCheckResult.NoCollision;
 }
 
 export function couldMove(
@@ -133,8 +185,10 @@ export function couldMove(
   tetromino: Matrix,
   tetrominoPosition: Position
 ): boolean {
-  return wouldCollide(board, tetromino, tetrominoPosition, delta)
-    === CollisionCheckResult.NoCollision
+  return (
+    wouldCollide(board, tetromino, tetrominoPosition, delta) ===
+    CollisionCheckResult.NoCollision
+  );
 }
 
 export function projectRow(
@@ -142,29 +196,40 @@ export function projectRow(
   tetromino: Matrix,
   tetrominoPosition: Position
 ): number {
-  const projectionPosition = {...tetrominoPosition}
+  const projectionPosition = {...tetrominoPosition};
 
   // Move as far down as possible.
   while (couldMove({row: 1, col: 0}, board, tetromino, projectionPosition))
-    projectionPosition.row += 1
+    projectionPosition.row += 1;
 
-  return projectionPosition.row
+  return projectionPosition.row;
 }
 
 function createInitialState(): State {
-  const initialTetromino = Tetromino.random
-  const middleCol = calculateMiddleCol(Const.BOARD_COLS, initialTetromino.cols)
-  const initialTetrominoPosition: Position = {row: 0, col: middleCol}
+  const initialTetromino = Tetromino.random;
+  const middleCol = calculateMiddleCol(
+    Const.BOARD_COLS,
+    initialTetromino.cols
+  );
+  const initialTetrominoPosition: Position = {row: 0, col: middleCol};
+
+  const initialProjectionRow = projectRow(
+    new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS),
+    initialTetromino,
+    initialTetrominoPosition
+  );
 
   const initialProjectionPosition: Position = {
-    row: Const.BOARD_ROWS - initialTetromino.rows,
-    col: middleCol
-  }
+    row: initialProjectionRow,
+    col: middleCol,
+  };
 
-  // REVISE: Avoid using `insert`, instead prefer `createNextTetrominoState`.
   const initialBoard = new Matrix(Const.BOARD_ROWS, Const.BOARD_COLS)
-    .insert(createProjectionTetromino(initialTetromino), initialProjectionPosition)
-    .insert(initialTetromino, initialTetrominoPosition)
+    .insert(
+      createProjectionTetromino(initialTetromino),
+      initialProjectionPosition
+    )
+    .insert(initialTetromino, initialTetrominoPosition);
 
   return new State({
     board: initialBoard,
@@ -174,58 +239,75 @@ function createInitialState(): State {
     fallTickInterval: Const.INITIAL_FALL_TICK_INTERVAL,
     score: 0,
     isPaused: Const.IS_DEBUG_MODE && Const.IS_DEBUG_PAUSED,
-    combo: 0
-  })
+    combo: 0,
+  });
 }
 
 window.addEventListener("load", () => {
-  console.log("Game logic loaded")
+  console.log("Game logic loaded");
 
-  const $board = document.querySelector(Const.BOARD_SELECTOR)!
+  const $board = document.querySelector(Const.BOARD_SELECTOR)!;
 
-  dom.createBoardCells().forEach($cell => $board.appendChild($cell))
-  console.log(`Initialized HTML board (${Const.BOARD_COLS}x${Const.BOARD_ROWS})`)
+  dom.createBoardCells().forEach(($cell) => $board.appendChild($cell));
+  console.log(
+    `Initialized HTML board (\${Const.BOARD_COLS}x\${Const.BOARD_ROWS})`
+  );
 
   // Setup effects, animations, and audio.
-  effects.playInitializationEffectSequence()
-  util.preloadAudios(Object.values(util.Sound))
+  effects.playInitializationEffectSequence();
+  util.preloadAudios(Object.values(util.Sound));
 
-  let state = createInitialState()
+  let state = createInitialState();
 
   // Initial render.
-  dom.render(state)
-  console.log("Initial render")
+  dom.render(state);
+  console.log("Initial render");
 
-  const createFallTickInterval = (interval: number) => setInterval(() => {
-    state = gameEvents.onFallTick(state)
-    dom.render(state)
-  }, interval)
+  const createFallTickInterval = (interval: number) =>
+    setInterval(() => {
+      state = gameEvents.onFallTick(state);
+      dom.render(state);
+    }, interval);
 
   let fallTickIntervalHandle = state.isPaused
     ? -1
-    : createFallTickInterval(state.fallTickInterval)
+    : createFallTickInterval(state.fallTickInterval);
 
-  window.addEventListener("keydown", event => {
-    let nextState = null
+  window.addEventListener("keydown", (event) => {
+    let nextState = null;
 
     // TODO: Handle out of bounds. Simply ignore if it would go out of bounds (use a `constrain` helper function).
     switch (event.key) {
-      case "ArrowLeft": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, true)); break
-      case "ArrowRight": nextState = state.choose(playerEvents.onPlayerHorizontalShiftInput(state, false)); break
-      case "ArrowUp": nextState = state.choose(playerEvents.onPlayerRotateInput(state)); break
-      case " ": nextState = state.choose(playerEvents.onPlayerPlacementInput(state)); break
+      case "ArrowLeft":
+        nextState = state.choose(
+          playerEvents.onPlayerHorizontalShiftInput(state, true)
+        );
+        break;
+      case "ArrowRight":
+        nextState = state.choose(
+          playerEvents.onPlayerHorizontalShiftInput(state, false)
+        );
+        break;
+      case "ArrowUp":
+        nextState = state.choose(playerEvents.onPlayerRotateInput(state));
+        break;
+      case " ":
+        nextState = state.choose(playerEvents.onPlayerPlacementInput(state));
+        break;
     }
 
     if (!state.isPaused && nextState !== null) {
       // FIXME: What happens if there was some time in between lost? Ie. when clearing and re-assigning it, it would technically not be precise, and not respect previous interval time left on the previous fall tick interval?
       // Reset the fall tick interval if it changed between states.
       if (nextState.fallTickInterval !== state.fallTickInterval) {
-        clearInterval(fallTickIntervalHandle)
-        fallTickIntervalHandle = createFallTickInterval(nextState.fallTickInterval)
+        clearInterval(fallTickIntervalHandle);
+        fallTickIntervalHandle = createFallTickInterval(
+          nextState.fallTickInterval
+        );
       }
 
-      state = nextState
-      dom.render(state)
+      state = nextState;
+      dom.render(state);
     }
-  })
-})
+  });
+});
